@@ -2,30 +2,31 @@ package fr.vco.codingame.puzzles.voxcodei.episode1
 
 import java.util.*
 
-const val NODE = 0
-const val WALL = 1
-const val EMPTY = 2
-const val BOMB = 2
+const val NODE = '@'
+const val WALL = '#'
+const val EMPTY = '.'
 const val BOMB_RANGE = 3
-
-interface Action
-class Wait() : Action {
-    override fun toString() = "WAIT"
-}
-
-class PutBomb(val x: Int, val y: Int) : Action {
-    override fun toString() = "$x $y"
-}
-
+const val BOMB_COUNTDOWN = 3
 
 class Node(
     val x: Int,
     val y: Int,
-    var type: Int = EMPTY,
+    var isWall : Boolean = false,
     val rangedNodes: MutableList<Node> = mutableListOf()
+) {
+    override fun equals(other: Any?): Boolean {
+        if(this === other ) return true
+        if(other is Node) {
+            return this.x == other.x && this.y == other.y
+        }
+        return false
+    }
+}
+
+class Bomb(
+    val node: Node,
+    var countDown : Int = BOMB_COUNTDOWN
 )
-
-
 class Board(
     val height: Int,
     val width: Int
@@ -35,18 +36,50 @@ class Board(
         Node(i%width,i/width )
     }
 
+    val bombs : MutableList<Bomb> = mutableListOf()
+    val targets : MutableList<Node> = mutableListOf()
+    var notTargeted : List<Node> = listOf()
+
     fun init(input: Scanner) {
         repeat(height) { y ->
-            input.nextLine().mapIndexed { x, it ->
+            input.nextLine().forEachIndexed { x, it ->
                 when (it) {
-                    '#' -> WALL
-                    '@' -> NODE
-                    else -> EMPTY
-                }.run { getNode(x, y).type = this }
+                    WALL ->  getNode(x, y).isWall = true
+                    NODE -> targets.add(getNode(x,y))
+                }
             }
         }
-
         initChildren()
+    }
+
+
+    fun getFreePosition() = nodes
+        .filterNot{it.isWall}
+        .filterNot{targets.contains(it)}
+        .filterNot{bombs.any{ b->b.node == it }}
+
+    fun addBomb(node : Node){
+        bombs.add(Bomb(node))
+    }
+
+    fun updateBoard(){
+        bombs.forEach { it.countDown--}
+        explodeChain()
+        val targeted = bombs.map{it.node.rangedNodes}.flatten()
+        notTargeted = targets.filterNot{targeted.contains(it)}
+    }
+
+    fun explodeChain(){
+        while (bombs.filter{it.countDown == 0}.isNotEmpty()) {
+            explodeBomb(bombs.first { it.countDown == 0 })
+        }
+    }
+
+    fun explodeBomb(bomb : Bomb) {
+        val explosion = bomb.node.rangedNodes
+        bombs.remove(bomb)
+        targets.removeAll(explosion)
+        bombs.filter{explosion.contains(it.node)}.forEach{ it.countDown = 0}
     }
 
     fun initChildren() {
@@ -60,7 +93,7 @@ class Board(
     fun getNode(x: Int, y: Int) = nodes[y * width + x]
 
     fun getChildren(parent: Node) =
-        if (!isValid(parent) || parent.type == WALL)
+        if (!isValid(parent) || parent.isWall)
             emptyList()
         else
             getLine(parent, 1, 0, 1) +
@@ -74,7 +107,7 @@ class Board(
             return emptyList()
 
         val node = getNode(origin.x + vx, origin.y + vy)
-        return if (node.type == WALL) emptyList()
+        return if (node.isWall) emptyList()
         else getLine(node, vx, vy, range + 1) + node
     }
 
@@ -82,7 +115,7 @@ class Board(
         val sb = StringBuffer()
         nodes.forEach{
             if(it.x == 0) sb.append("\n")
-            sb.append("[${it.x} ${it.y} ${it.type}] ")
+            sb.append("[${it.x} ${it.y} ${it.isWall}] ")
         }
         return sb.toString()
     }
@@ -100,19 +133,19 @@ fun main() {
 
     val board = Board(height, width)
     board.init(input)
-    System.err.println(board.boardToString())
 
-    // game loop
     while (true) {
         val rounds = input.nextInt() // number of rounds left before the end of the game
         val bombs = input.nextInt() // number of bombs left
 
-        val action = board.nodes
-            .filter{it.type == EMPTY}
-            .maxBy{it.rangedNodes.count { c -> c.type == NODE }}
+        board.updateBoard()
+        val bomb = board.getFreePosition()
+            .maxBy{it.rangedNodes.count (board.notTargeted::contains) }
+            ?.apply(board::addBomb)
             ?.let{"${it.x} ${it.y}"}
             ?:"WAIT"
 
-        println(action)
+        println(bomb)
+
     }
 }
