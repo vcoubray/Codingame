@@ -2,18 +2,14 @@ package fr.vco.codingame.puzzles.voxcodei.episode1
 
 import java.util.*
 
-
 const val NODE = '@'
 const val WALL = '#'
-const val EMPTY = '.'
 const val BOMB_RANGE = 3
 const val BOMB_COUNTDOWN = 3
-
 
 data class Location(val x: Int, val y: Int) {
     operator fun plus(loc: Location): Location = Location(this.x + loc.x, this.y + loc.y)
     override fun toString() = "$x $y"
-
 }
 
 class Node(
@@ -39,7 +35,6 @@ class Node(
 
 data class Bomb(
     val loc: Location,
-    // val node: Node,
     val countDown: Int = BOMB_COUNTDOWN
 )
 
@@ -83,8 +78,6 @@ class Board(val height: Int,
         return if (node.isWall) emptyList()
         else getLine(node, dir, range + 1) + node
     }
-
-
 }
 
 class State(
@@ -98,16 +91,14 @@ class State(
 ) {
 
     val targetedCount = targets.intersect(bombs.map{board.getNode(it.loc).rangedNodes}.flatten()).size
-    val remainTargets = targets.size-targetedCount
-
+    val explosions  = bombs.map{board.getNode(it.loc).rangedNodes}.flatten()
+    val notTargeted = targets.filterNot(explosions::contains)
     init {
         explodeBombs()
     }
 
     fun isEnd() = turn <= 0 || bombsCount <= 0
     fun isWin(): Boolean {
-        val explosions  = bombs.map{board.getNode(it.loc).rangedNodes}.flatten()
-        val notTargeted = targets.filterNot(explosions::contains)
         return notTargeted.isEmpty()
     }
 
@@ -131,7 +122,6 @@ class State(
     fun getNextTurns(): List<State> {
         val explosions  = bombs.map{board.getNode(it.loc).rangedNodes}.flatten()
         val notTargeted = targets.filterNot(explosions::contains)
-        //System.err.println("Next Turn -- $bombsCount, ${bombs.size}, $turn, ${isEnd()}")
         return when {
             isEnd() -> emptyList()
             bombsCount <= 0 -> listOf(wait())
@@ -142,7 +132,7 @@ class State(
                 .filterNot { bombs.any { b -> b.loc == it.loc } }
                 .filter{ it.rangedNodes.intersect(notTargeted).isNotEmpty()}
                 .map { dropBomb(it.loc) }
-                .toList() + wait()
+                .toList() + (if(bombs.none{it.countDown >0}) emptyList() else listOf(wait()))
         }
     }
 
@@ -179,15 +169,15 @@ class State(
         return actions + List(turn){"WAIT"}
     }
 
-    fun getHash() : Int {
-        var hash = turn
-        hash += 31 * bombsCount
-        hash *= 31 * remainTargets
-        return hash
-    }
+    fun identity() = StateIdentity(bombsCount,turn,notTargeted)
 
 }
 
+data class StateIdentity(
+    val bombsCount: Int,
+    val turn : Int,
+    val targets: List<Node>
+)
 
 fun main() {
     val input = Scanner(System.`in`)
@@ -222,34 +212,21 @@ fun main() {
         turn = rounds
     )
 
-
+    val visited = mutableMapOf<Int,Boolean>()
     val toVisit = LinkedList<State>()
     toVisit.add(state)
 
-    val visited = mutableMapOf<Int,Boolean>()
-
-
     while (toVisit.isNotEmpty()) {
         val current = toVisit.removeLast()
-        System.err.println("${current.turn} -> ${current.action}")
-        if(! visited.containsKey(current.getHash())) {
-            toVisit.addAll(current.getNextTurns().sortedBy { it.targetedCount }/*.apply{map{System.err.println(it.action)}}*/)
+
+        if(! visited.containsKey(current.identity().hashCode())) {
+            toVisit.addAll(current.getNextTurns().sortedBy { it.targetedCount })
         }
-        visited[current.getHash()] = true
+        visited[current.identity().hashCode()] = true
 
-
-//        System.err.println("${current.action} ->")
         if(current.isWin()) {
-
-            //current.actions().forEach(System.err::println)
             current.actions().forEach(::println)
             break
         }
-
-
-
-        //toVisit.remove(current)
     }
-
-
 }
