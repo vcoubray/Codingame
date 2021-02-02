@@ -1,28 +1,34 @@
 package fr.vco.codingame.puzzles.voxcodei.episode1
 
+import java.lang.Exception
 import java.util.*
 
 const val NODE = '@'
 const val WALL = '#'
 const val BOMB_RANGE = 3
 const val BOMB_COUNTDOWN = 3
+const val WAIT = "WAIT"
 
 data class Location(val x: Int, val y: Int) {
     operator fun plus(loc: Location): Location = Location(this.x + loc.x, this.y + loc.y)
     override fun toString() = "$x $y"
 }
 
-class Node(
+enum class TileType { NODE, WALL, EMPTY }
+
+class Tile(
     x: Int,
     y: Int,
-    var isWall: Boolean = false,
-    val rangedNodes: MutableList<Node> = mutableListOf()
+    val type: TileType,
+    val range: MutableList<Tile> = mutableListOf()
 ) {
     val loc = Location(x, y)
 
+    fun isWall() = type == TileType.WALL
+
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
-        if (other is Node) {
+        if (other is Tile) {
             return loc == other.loc
         }
         return false
@@ -38,28 +44,41 @@ data class Bomb(
     val countDown: Int = BOMB_COUNTDOWN
 )
 
-class Board(val height: Int,
-            val width: Int
+class Board(
+    val height: Int,
+    val width: Int,
+    input: Scanner
 ) {
 
-    val nodes: List<Node> = List(height * width) { i: Int ->
-        Node(i % width, i / width)
+    val tiles = List(height) { y ->
+        input.nextLine().mapIndexed { x, it ->
+            val type = when (it) {
+                WALL -> TileType.WALL
+                NODE -> TileType.NODE
+                else -> TileType.EMPTY
+            }
+            Tile(x, y, type)
+        }
+    }.flatten()
+
+    init {
+        initChildren()
     }
 
-    fun initChildren() {
-        nodes.forEach {
-            it.rangedNodes.addAll(getChildren(it))
+    private fun initChildren() {
+        tiles.forEach {
+            it.range.addAll(getChildren(it))
         }
     }
 
-    fun isValid(node: Node) = isValid(node.loc.x, node.loc.y)
+    fun isValid(tile: Tile) = isValid(tile.loc.x, tile.loc.y)
     fun isValid(loc: Location) = isValid(loc.x, loc.y)
     fun isValid(x: Int, y: Int) = x in 0 until width && y in 0 until height
-    fun getNode(x: Int, y: Int) = nodes[y * width + x]
-    fun getNode(loc: Location) = getNode(loc.x, loc.y)
+    fun getTile(x: Int, y: Int) = tiles[y * width + x]
+    fun getTile(loc: Location) = getTile(loc.x, loc.y)
 
-    private fun getChildren(parent: Node) =
-        if (!isValid(parent) || parent.isWall)
+    private fun getChildren(parent: Tile) =
+        if (!isValid(parent) || parent.isWall())
             emptyList()
         else
             getLine(parent, Location(1, 0), 1) +
@@ -67,116 +86,107 @@ class Board(val height: Int,
                 getLine(parent, Location(0, 1), 1) +
                 getLine(parent, Location(0, -1), 1)
 
-    fun getLine(origin: Node, dir: Location, range: Int): List<Node> {
-
+    fun getLine(origin: Tile, dir: Location, range: Int): List<Tile> {
         val target = origin.loc + dir
-
         if (range > BOMB_RANGE || !isValid(target))
             return emptyList()
 
-        val node = getNode(target)
-        return if (node.isWall) emptyList()
+        val node = getTile(target)
+        return if (node.isWall()) emptyList()
         else getLine(node, dir, range + 1) + node
     }
 }
 
 class State(
     val board: Board,
-    val targets: MutableList<Node>,
-    val bombs: MutableList<Bomb>,
+    val nodes: List<Tile>,
+    val bombs: List<Bomb>,
     val turn: Int,
     val bombsCount: Int,
-    val parent: State?=null,
-    val action: String?=null
+    val parent: State? = null,
+    val action: String? = null
 ) {
 
-    val targetedCount = targets.intersect(bombs.map{board.getNode(it.loc).rangedNodes}.flatten()).size
-    val explosions  = bombs.map{board.getNode(it.loc).rangedNodes}.flatten()
-    val notTargeted = targets.filterNot(explosions::contains)
-    init {
-        explodeBombs()
-    }
+    val bombCover = bombs.map { board.getTile(it.loc).range }.flatten()
+    val targetedNodesCount = nodes.intersect(bombCover).size
+    val notTargetedNodes = nodes.filterNot(bombCover::contains)
 
     fun isEnd() = turn <= 0 || bombsCount <= 0
-    fun isWin(): Boolean {
-        return notTargeted.isEmpty()
-    }
+    fun isWin() = notTargetedNodes.isEmpty()
 
-
-    fun explodeBombs() {
+    fun explodeBombs(): Pair<List<Bomb>, List<Tile>> {
 
         val explodingBombs = LinkedList<Bomb>(bombs.filter { it.countDown <= 0 })
-        bombs.removeAll(explodingBombs)
+        val newBombs = bombs.minus(explodingBombs).toMutableList()
+        val newNodes = nodes.toMutableList()
+
         while (explodingBombs.isNotEmpty()) {
             val currentBomb = explodingBombs.pop()
-            board.getNode(currentBomb.loc).rangedNodes.forEach {
-                targets.remove(it)
-                val chainedBombs = bombs.filter { bomb -> bomb.loc == it.loc }
+            board.getTile(currentBomb.loc).range.forEach {
+                newNodes.remove(it)
+                val chainedBombs = newBombs.filter { bomb -> bomb.loc == it.loc }
                 explodingBombs.addAll(chainedBombs)
-                bombs.removeAll(chainedBombs)
+                newBombs.removeAll(chainedBombs)
             }
         }
-
+        return (newBombs.map { it.copy(countDown = it.countDown - 1) } to newNodes)
     }
 
+
     fun getNextTurns(): List<State> {
-        val explosions  = bombs.map{board.getNode(it.loc).rangedNodes}.flatten()
-        val notTargeted = targets.filterNot(explosions::contains)
+        val (newBombs, newNodes) = explodeBombs()
         return when {
             isEnd() -> emptyList()
-            bombsCount <= 0 -> listOf(wait())
-            else -> board.nodes
+            bombsCount <= 0 -> listOf(wait(newBombs, newNodes))
+            else -> board.tiles
                 .asSequence()
-                .filterNot { it.isWall }
-                .filterNot(targets::contains)
-                .filterNot { bombs.any { b -> b.loc == it.loc } }
-                .filter{ it.rangedNodes.intersect(notTargeted).isNotEmpty()}
-                .map { dropBomb(it.loc) }
-                .toList() + (if(bombs.none{it.countDown >0}) emptyList() else listOf(wait()))
+                .filterNot { it.isWall() }
+                .filterNot(newNodes::contains)
+                .filterNot { newBombs.any { b -> b.loc == it.loc } }
+                .filter { it.range.intersect(notTargetedNodes).isNotEmpty() }
+                .map { dropBomb(it.loc, newBombs, newNodes) }
+                .toList() + (if (newBombs.none { it.countDown >= 0 }) emptyList() else listOf(wait(newBombs, newNodes)))
         }
     }
 
-    fun dropBomb(loc: Location): State {
-        return State(
-            board,
-            targets.toMutableList(),
-            bombs.map{it.copy(countDown = it.countDown-1)}.toMutableList().apply { add(Bomb(loc)) },
-            turn - 1,
-            bombsCount - 1,
-            this,
-            loc.toString()
-        )
-    }
-
-    fun wait(): State = State(
+    private fun dropBomb(loc: Location, newBombs: List<Bomb>, newNodes: List<Tile>) = State(
         board,
-        targets.toMutableList(),
-        bombs.map{it.copy(countDown = it.countDown-1)}.toMutableList(),
+        newNodes,
+        newBombs + Bomb(loc),
+        turn - 1,
+        bombsCount - 1,
+        this,
+        loc.toString()
+    )
+
+    private fun wait(newBombs: List<Bomb>, newNodes: List<Tile>): State = State(
+        board,
+        newNodes,
+        newBombs,
         turn - 1,
         bombsCount,
         this,
-        "WAIT"
+        WAIT
     )
 
-    fun actions() : List<String> {
+    fun actions(): List<String> {
         var current: State? = this
         val actions = LinkedList<String>()
-        while (current?.action!=null){
+        while (current?.action != null) {
             actions.addFirst(current.action)
             current = current.parent
-            System.err.println(actions)
         }
-        return actions + List(turn){"WAIT"}
+        return actions + List(turn) { WAIT }
     }
 
-    fun identity() = StateIdentity(bombsCount,turn,notTargeted)
+    fun identity() = StateIdentity(bombsCount, turn, notTargetedNodes)
 
 }
 
 data class StateIdentity(
     val bombsCount: Int,
-    val turn : Int,
-    val targets: List<Node>
+    val turn: Int,
+    val targets: List<Tile>
 )
 
 fun main() {
@@ -188,45 +198,39 @@ fun main() {
         input.nextLine()
     }
 
-    val targets = mutableListOf<Node>()
-    val board = Board(height, width)
-
-    repeat(height) { y ->
-        input.nextLine().forEachIndexed { x, it ->
-            when (it) {
-                WALL -> board.getNode(x, y).isWall = true
-                NODE -> targets.add(board.getNode(x, y))
-            }
-        }
-    }
-    board.initChildren()
+    val board = Board(height, width, input)
 
     val rounds = input.nextInt() // number of rounds left before the end of the game
     val bombs = input.nextInt() // number of bombs left
 
-    val state = State(
+    val startState = State(
         board = board,
-        targets = targets,
-        bombs = mutableListOf(),
+        nodes = board.tiles.filter { it.type == TileType.NODE },
+        bombs = emptyList(),
         bombsCount = bombs,
         turn = rounds
     )
+    simulation(startState).actions().forEach(::println)
 
-    val visited = mutableMapOf<Int,Boolean>()
+}
+
+fun simulation(state: State) : State {
+    val visited = mutableMapOf<Int, Boolean>()
     val toVisit = LinkedList<State>()
     toVisit.add(state)
 
     while (toVisit.isNotEmpty()) {
         val current = toVisit.removeLast()
 
-        if(! visited.containsKey(current.identity().hashCode())) {
-            toVisit.addAll(current.getNextTurns().sortedBy { it.targetedCount })
+        if (!visited.containsKey(current.identity().hashCode())) {
+            toVisit.addAll(current.getNextTurns().sortedBy { it.targetedNodesCount })
         }
         visited[current.identity().hashCode()] = true
 
-        if(current.isWin()) {
-            current.actions().forEach(::println)
-            break
+        if (current.isWin()) {
+            return current
         }
     }
+    System.err.println("No winner state found")
+    throw Exception("No winner state found")
 }
