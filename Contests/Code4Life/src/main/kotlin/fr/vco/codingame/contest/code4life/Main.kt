@@ -4,8 +4,9 @@ import java.util.*
 
 fun log(message: String) = System.err.println(message)
 
-enum class Module { DIAGNOSIS, MOLECULES, LABORATORY, START_POS }
-val moleculeType = listOf("A","B","C","D","E")
+enum class Module { DIAGNOSIS, MOLECULES, SAMPLES, LABORATORY, START_POS }
+
+val moleculeType = listOf("A", "B", "C", "D", "E")
 
 fun Int.toMoleculeType() = moleculeType[this]
 
@@ -14,18 +15,20 @@ class Bot(
     val score: Int,
     val storage: List<Int>
 ) {
-    fun hasEnough(cost : List<Int>) : Boolean{
-       return storage.zip(cost).all{(a,b) -> a >= b}
+    fun hasEnough(cost: List<Int>): Boolean {
+        return storage.zip(cost).all { (a, b) -> a >= b }
     }
 }
 
 data class Sample(
     val id: Int,
     val owner: Int,
+    val rank: Int,
     val health: Int,
     val costs: List<Int>
-){
-    fun rentability()= health.toFloat()/ costs.sum()
+) {
+    fun rentability() = health.toFloat() / costs.sum()
+    fun isDiagnosed() = health != -1
 }
 
 fun main() {
@@ -84,24 +87,27 @@ fun main() {
             Sample(
                 sampleId,
                 carriedBy,
+                rank,
                 health,
-                listOf(costA,costB, costC, costD, costE)
+                listOf(costA, costB, costC, costD, costE)
             )
         }
 
 
         val me = bots.first()
         val mySample = samples.firstOrNull { it.owner == 0 }
-        val availableSamples = samples.filter{it.owner == -1}.sortedByDescending { it.rentability() }
+        val availableSamples = samples.filter { it.owner == -1 }.sortedByDescending { it.rentability() }
 
-        log(mySample?.toString()?:"")
+        log(mySample?.toString() ?: "")
         val action = when {
-            mySample == null && me.module != Module.DIAGNOSIS -> "GOTO ${Module.DIAGNOSIS}"
-            mySample == null -> "CONNECT ${availableSamples.first().id}"
-            me.hasEnough(mySample.costs) && me.module !=Module.LABORATORY -> "GOTO ${Module.LABORATORY}"
-            me.hasEnough(mySample.costs)-> "CONNECT ${mySample.id}"
+            mySample == null && me.module != Module.SAMPLES -> "GOTO ${Module.SAMPLES}"
+            mySample == null -> "CONNECT 2"
+            !mySample.isDiagnosed() && me.module != Module.DIAGNOSIS -> "GOTO ${Module.DIAGNOSIS}"
+            !mySample.isDiagnosed() -> "CONNECT ${mySample.id}"
+            me.hasEnough(mySample.costs) && me.module != Module.LABORATORY -> "GOTO ${Module.LABORATORY}"
+            me.hasEnough(mySample.costs) -> "CONNECT ${mySample.id}"
             me.module != Module.MOLECULES -> "GOTO ${Module.MOLECULES}"
-            else -> "CONNECT ${me.storage.zip(mySample.costs).indexOfFirst{(a,b) -> a < b}.toMoleculeType()}"
+            else -> "CONNECT ${me.storage.zip(mySample.costs).indexOfFirst { (a, b) -> a < b }.toMoleculeType()}"
         }
 
         println(action)
