@@ -1,23 +1,39 @@
 package fr.vco.codingame.contest.code4life
 
 import java.util.*
+import kotlin.math.max
+import kotlin.math.min
 
 fun log(message: String) = System.err.println(message)
 
-enum class Module { DIAGNOSIS, MOLECULES, SAMPLES, LABORATORY, START_POS }
-
 val moleculeType = listOf("A", "B", "C", "D", "E")
+const val MAX_MOLECULES = 10
+const val MAX_SAMPLES = 3
+
+enum class Module { DIAGNOSIS, MOLECULES, SAMPLES, LABORATORY, START_POS }
 
 fun Int.toMoleculeType() = moleculeType[this]
 
 class Bot(
     val module: Module,
+    val eta: Int,
     val score: Int,
-    val storage: List<Int>
-) {
+    val storage: List<Int>,
+    val expertise : List<Int>
+)
+ {
     fun hasEnough(cost: List<Int>): Boolean {
-        return storage.zip(cost).all { (a, b) -> a >= b }
+        return storage.zip(expertise).map{(a,b) -> a+b}
+            .zip(cost).all { (a, b) -> a >= b }
     }
+    fun need(cost: List<Int>):List<Int> {
+        return storage.zip(expertise).map{(a,b) -> a+b}
+            .zip(cost).map { (a, b) -> max(b - a, 0) }
+    }
+
+     fun isMoving() = eta > 0
+
+
 }
 
 data class Sample(
@@ -61,8 +77,10 @@ fun main() {
             val expertiseE = input.nextInt()
             Bot(
                 Module.valueOf(module),
+                eta,
                 score,
-                listOf(storageA, storageB, storageC, storageD, storageE)
+                listOf(storageA, storageB, storageC, storageD, storageE),
+                listOf(expertiseA, expertiseB, expertiseC, expertiseD, expertiseE)
             )
         }
 
@@ -71,8 +89,9 @@ fun main() {
         val availableC = input.nextInt()
         val availableD = input.nextInt()
         val availableE = input.nextInt()
-        val sampleCount = input.nextInt()
+        val availablesMolecules = listOf(availableA,availableB,availableC,availableD,availableE)
 
+        val sampleCount = input.nextInt()
         val samples = List(sampleCount) {
             val sampleId = input.nextInt()
             val carriedBy = input.nextInt()
@@ -95,19 +114,51 @@ fun main() {
 
 
         val me = bots.first()
+        val mySamples = samples.filter{ it.owner == 0}
         val mySample = samples.firstOrNull { it.owner == 0 }
         val availableSamples = samples.filter { it.owner == -1 }.sortedByDescending { it.rentability() }
 
         log(mySample?.toString() ?: "")
+
+
         val action = when {
-            mySample == null && me.module != Module.SAMPLES -> "GOTO ${Module.SAMPLES}"
-            mySample == null -> "CONNECT 2"
-            !mySample.isDiagnosed() && me.module != Module.DIAGNOSIS -> "GOTO ${Module.DIAGNOSIS}"
-            !mySample.isDiagnosed() -> "CONNECT ${mySample.id}"
-            me.hasEnough(mySample.costs) && me.module != Module.LABORATORY -> "GOTO ${Module.LABORATORY}"
-            me.hasEnough(mySample.costs) -> "CONNECT ${mySample.id}"
-            me.module != Module.MOLECULES -> "GOTO ${Module.MOLECULES}"
-            else -> "CONNECT ${me.storage.zip(mySample.costs).indexOfFirst { (a, b) -> a < b }.toMoleculeType()}"
+            me.isMoving() -> "WAIT"
+            me.module == Module.START_POS -> "GOTO ${Module.SAMPLES}"
+            me.module == Module.SAMPLES -> {
+                val rank = when {
+                    me.expertise.sum() > 10 -> 3
+                    me.expertise.sum() > 5 -> 2
+                    else -> 1
+                }
+                if(mySamples.size < MAX_SAMPLES ) "CONNECT $rank"
+                else "GOTO ${Module.DIAGNOSIS}"
+            }
+            me.module == Module.DIAGNOSIS -> {
+                if(mySamples.isEmpty()) "GOTO ${Module.SAMPLES}"
+                else mySamples.firstOrNull{!it.isDiagnosed()}?.let{"CONNECT ${it.id}"}
+                    ?:mySamples.firstOrNull{me.need(it.costs).any{m -> m > 5}}?.let{"CONNECT ${it.id}"}
+                    ?:"GOTO ${Module.MOLECULES}"
+            }
+            me.module == Module.MOLECULES -> {
+                when {
+                    mySamples.any{me.hasEnough(it.costs)} -> "GOTO ${Module.LABORATORY}"
+                    else -> mySamples.firstOrNull()
+                        ?.let{me.need(it.costs)}
+                        ?.apply{log(this.toString())}
+                        ?.zip(availablesMolecules)?.mapIndexed { i, (a,b) -> i.toMoleculeType() to (a > 0 && b > 0) }
+                        ?.apply{log(this.toString())}
+                        ?.firstOrNull{it.second}?.let{"CONNECT ${it.first}"}
+                        ?:"WAIT"
+                }
+            }
+            me.module == Module.LABORATORY -> {
+                when {
+                    mySamples.isEmpty() -> "GOTO ${Module.SAMPLES}"
+                    mySamples.none{me.hasEnough(it.costs)} -> "GOTO ${Module.MOLECULES}"
+                    else ->  mySamples.firstOrNull{me.hasEnough(it.costs)}?.let{"CONNECT ${it.id}"}?:"WAIT"
+                }
+            }
+            else -> "WAIT"
         }
 
         println(action)
