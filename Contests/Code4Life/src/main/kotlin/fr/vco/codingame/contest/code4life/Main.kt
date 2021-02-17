@@ -3,12 +3,11 @@ package fr.vco.codingame.contest.code4life
 import java.util.*
 import kotlin.math.max
 
-
 fun log(message: String) = System.err.println(message)
 
-val moleculeType = listOf("A", "B", "C", "D", "E")
 const val MAX_MOLECULES = 10
 const val MAX_SAMPLES = 3
+val moleculeType = listOf("A", "B", "C", "D", "E")
 
 enum class Module { DIAGNOSIS, MOLECULES, SAMPLES, LABORATORY, START_POS }
 
@@ -21,7 +20,7 @@ data class Molecules(val molecules: Map<String, Int>) {
     operator fun plus(other: Molecules) = molecules.map { (a, b) -> a to b + other[a] }.toMolecules()
     operator fun minus(other: Molecules) = molecules.map { (a, b) -> a to b - other[a] }.toMolecules()
     fun sum() = molecules.values.sum()
-    fun union(other: Molecules) : Collection<String> = molecules.filter{(a,b) -> b > 0 && other[a] > 0}.keys
+    fun union(other: Molecules): Collection<String> = molecules.filter { (a, b) -> b > 0 && other[a] > 0 }.keys
 }
 
 data class Bot(
@@ -39,18 +38,17 @@ data class Bot(
         expertise = Molecules(input)
     )
 
-    val realStorage: Molecules = storage + expertise
+    val usable: Molecules = storage + expertise
 
     fun hasEnough(costs: Molecules): Boolean {
-        return (realStorage - costs).molecules.all { (_, b) -> b >= 0 }
+        return (usable - costs).molecules.all { (_, b) -> b >= 0 }
     }
 
     fun need(costs: Molecules): Molecules {
-        return (costs - realStorage).molecules.map { (a, b) -> a to max(b, 0) }.toMolecules()
+        return (costs - usable).molecules.map { (a, b) -> a to max(b, 0) }.toMolecules()
     }
 
     fun isMoving() = eta > 0
-
 
 }
 
@@ -58,7 +56,7 @@ data class Sample(
     val id: Int,
     val owner: Int,
     val rank: Int,
-    val gain : String,
+    val gain: String,
     val health: Int,
     val costs: Molecules
 ) {
@@ -79,32 +77,20 @@ data class Sample(
 fun main() {
     val input = Scanner(System.`in`)
     val projectCount = input.nextInt()
-    for (i in 0 until projectCount) {
-        log("PROJECTS")
-        val a = input.nextInt()
-        val b = input.nextInt()
-        val c = input.nextInt()
-        val d = input.nextInt()
-        val e = input.nextInt()
-    }
+    val projects = List(projectCount) { Molecules(input)}
 
     // game loop
     while (true) {
         val bots = List(2) { Bot(input) }
-        val availablesMolecules = Molecules(input) //listOf(availableA, availableB, availableC, availableD, availableE)
+        val availableMolecules = Molecules(input)
         val sampleCount = input.nextInt()
         val samples = List(sampleCount) { Sample(input) }
 
-
-        val me = bots.first()
-        val opp = bots.last()
+        val (me,opp) = bots
 
         val mySamples = samples.filter { it.owner == 0 }
-        val mySample = samples.firstOrNull { it.owner == 0 }
-        val availableSamples = samples.filter { it.owner == -1 }.sortedByDescending { it.rentability() }
-
-        log(mySample?.toString() ?: "")
-
+        val oppSamples = samples.filter { it.owner == 1 }
+        val cloudSamples = samples.filter { it.owner == -1 }
 
         val action = when {
             me.isMoving() -> "WAIT"
@@ -121,7 +107,7 @@ fun main() {
             me.module == Module.DIAGNOSIS -> {
                 if (mySamples.isEmpty()) "GOTO ${Module.SAMPLES}"
                 else mySamples.firstOrNull { !it.isDiagnosed() }?.let { "CONNECT ${it.id}" }
-                    ?: mySamples.firstOrNull { me.need(it.costs).molecules.any { (_,m) -> m > 5 } }?.let { "CONNECT ${it.id}" }
+                    ?: mySamples.firstOrNull { me.need(it.costs).molecules.any { (_, m) -> m > 5 } }?.let { "CONNECT ${it.id}" }
                     ?: "GOTO ${Module.MOLECULES}"
             }
             me.module == Module.MOLECULES -> {
@@ -130,7 +116,7 @@ fun main() {
                     else -> mySamples.firstOrNull()
                         ?.let { me.need(it.costs) }
                         ?.apply { log(this.toString()) }
-                        ?.union(availablesMolecules)
+                        ?.union(availableMolecules)
                         ?.apply { log(this.toString()) }
                         ?.firstOrNull()?.let { "CONNECT $it" }
                         ?: "WAIT"
