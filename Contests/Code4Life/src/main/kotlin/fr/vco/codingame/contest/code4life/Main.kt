@@ -74,64 +74,151 @@ data class Sample(
     fun isDiagnosed() = health != -1
 }
 
+
+interface Action
+
+
+class WaitAction : Action {
+    override fun toString() = "WAIT"
+}
+
+class MoveAction : Action {
+    override fun toString() = "Moving"
+}
+
+class GotoAction(val module: Module) : Action {
+    override fun toString() = "GOTO $module"
+}
+
+class SearchAction(val rank: Int) : Action {
+    override fun toString() = "CONNECT $rank"
+}
+
+class SampleAction(val sample: Sample) : Action {
+    override fun toString() = "CONNECT ${sample.id}"
+}
+
+class MoleculeAction(val molecule: String) : Action {
+    override fun toString() = "CONNECT $molecule"
+}
+
+
+abstract class State(game: Game) {
+
+    val availableMolecules: Molecules = game.availableMolecules
+    val mySamples: List<Sample> = game.mySamples
+    val oppSamples: List<Sample> = game.oppSamples
+    val cloudSamples: List<Sample> = game.cloudSamples
+    val me: Bot = game.me
+    val opp: Bot = game.opp
+
+    abstract fun action(): Action
+}
+
+class StartState(game: Game) : State(game) {
+    override fun action() = GotoAction(Module.SAMPLES)
+}
+
+class SamplesState(game: Game) : State(game) {
+    override fun action(): Action {
+        /* TODO : Optimize rank selection */
+        val rank = when {
+            me.expertise.sum() > 10 -> 3
+            me.expertise.sum() > 5 -> 2
+            else -> 1
+        }
+        return if (mySamples.size < MAX_SAMPLES) SearchAction(rank)
+        else GotoAction(Module.DIAGNOSIS)
+    }
+}
+
+class MoleculesState(game: Game) : State(game) {
+    override fun action(): Action {
+        return when {
+            /*TODO :
+                - Prepare most rentable Sample in priority
+                - Take molecules needed by opponent too in priority
+                - Prepare several Sample in one time, if possible
+                - Dont wait for molecule if opponent hold them
+             */
+            mySamples.any { me.hasEnough(it.costs) } -> GotoAction(Module.LABORATORY)
+            else -> mySamples.firstOrNull()
+                ?.let { me.need(it.costs) }
+                ?.apply { log(this.toString()) }
+                ?.union(availableMolecules)
+                ?.apply { log(this.toString()) }
+                ?.firstOrNull()?.let(::MoleculeAction)
+                ?: WaitAction()
+        }
+    }
+}
+
+class DiagnosisState(game: Game) : State(game) {
+    override fun action(): Action {
+        /* TODO :
+            - Keep Samples if several of them can be done in one time
+            - check cloud for interesting samples
+         */
+        return if (mySamples.isEmpty()) GotoAction(Module.SAMPLES)
+        else mySamples.firstOrNull { !it.isDiagnosed() }?.let(::SampleAction)
+            ?: mySamples.firstOrNull { me.need(it.costs).molecules.any { (_, m) -> m > 5 } }?.let(::SampleAction)
+            ?: GotoAction(Module.MOLECULES)
+    }
+}
+
+class LaboratoryState(game: Game) : State(game) {
+    override fun action(): Action {
+        return when {
+            /*
+             TODO : Goto the diagnosis module directly if there is interesting samples
+             */
+            mySamples.isEmpty() -> GotoAction(Module.SAMPLES)
+            mySamples.none { me.hasEnough(it.costs) } -> GotoAction(Module.MOLECULES)
+            else -> mySamples.firstOrNull { me.hasEnough(it.costs) }?.let (::SampleAction) ?: WaitAction()
+        }
+    }
+}
+
+class Game( val projects : List<Molecules>, input: Scanner) {
+
+    val availableMolecules: Molecules
+    val mySamples: List<Sample>
+    val oppSamples: List<Sample>
+    val cloudSamples: List<Sample>
+    val me: Bot
+    val opp: Bot
+
+    init {
+        val bots = List(2) { Bot(input) }
+        me = bots.first()
+        opp = bots.last()
+        availableMolecules = Molecules(input)
+
+        val sampleCount = input.nextInt()
+        val samples = List(sampleCount) { Sample(input) }
+        mySamples = samples.filter { it.owner == 0 }
+        oppSamples = samples.filter { it.owner == 1 }
+        cloudSamples = samples.filter { it.owner == -1 }
+    }
+
+    fun currentState(): State =
+        when (me.module) {
+            Module.SAMPLES -> SamplesState(this)
+            Module.DIAGNOSIS -> DiagnosisState(this)
+            Module.LABORATORY -> LaboratoryState(this)
+            Module.MOLECULES -> MoleculesState(this)
+            Module.START_POS -> StartState(this)
+        }
+}
+
+
 fun main() {
     val input = Scanner(System.`in`)
     val projectCount = input.nextInt()
-    val projects = List(projectCount) { Molecules(input)}
+    val projects = List(projectCount) { Molecules(input) }
 
     // game loop
     while (true) {
-        val bots = List(2) { Bot(input) }
-        val availableMolecules = Molecules(input)
-        val sampleCount = input.nextInt()
-        val samples = List(sampleCount) { Sample(input) }
-
-        val (me,opp) = bots
-
-        val mySamples = samples.filter { it.owner == 0 }
-        val oppSamples = samples.filter { it.owner == 1 }
-        val cloudSamples = samples.filter { it.owner == -1 }
-
-        val action = when {
-            me.isMoving() -> "WAIT"
-            me.module == Module.START_POS -> "GOTO ${Module.SAMPLES}"
-            me.module == Module.SAMPLES -> {
-                val rank = when {
-                    me.expertise.sum() > 10 -> 3
-                    me.expertise.sum() > 5 -> 2
-                    else -> 1
-                }
-                if (mySamples.size < MAX_SAMPLES) "CONNECT $rank"
-                else "GOTO ${Module.DIAGNOSIS}"
-            }
-            me.module == Module.DIAGNOSIS -> {
-                if (mySamples.isEmpty()) "GOTO ${Module.SAMPLES}"
-                else mySamples.firstOrNull { !it.isDiagnosed() }?.let { "CONNECT ${it.id}" }
-                    ?: mySamples.firstOrNull { me.need(it.costs).molecules.any { (_, m) -> m > 5 } }?.let { "CONNECT ${it.id}" }
-                    ?: "GOTO ${Module.MOLECULES}"
-            }
-            me.module == Module.MOLECULES -> {
-                when {
-                    mySamples.any { me.hasEnough(it.costs) } -> "GOTO ${Module.LABORATORY}"
-                    else -> mySamples.firstOrNull()
-                        ?.let { me.need(it.costs) }
-                        ?.apply { log(this.toString()) }
-                        ?.union(availableMolecules)
-                        ?.apply { log(this.toString()) }
-                        ?.firstOrNull()?.let { "CONNECT $it" }
-                        ?: "WAIT"
-                }
-            }
-            me.module == Module.LABORATORY -> {
-                when {
-                    mySamples.isEmpty() -> "GOTO ${Module.SAMPLES}"
-                    mySamples.none { me.hasEnough(it.costs) } -> "GOTO ${Module.MOLECULES}"
-                    else -> mySamples.firstOrNull { me.hasEnough(it.costs) }?.let { "CONNECT ${it.id}" } ?: "WAIT"
-                }
-            }
-            else -> "WAIT"
-        }
-        log(action)
-        println(action)
+        println(Game(projects,input).currentState().action())
     }
 }
