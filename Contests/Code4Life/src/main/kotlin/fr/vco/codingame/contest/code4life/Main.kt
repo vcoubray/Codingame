@@ -3,10 +3,11 @@ package fr.vco.codingame.contest.code4life
 import java.util.*
 import kotlin.math.max
 
-fun log(message: String) = System.err.println(message)
+fun log(message: Any) = System.err.println(message.toString())
 
 const val MAX_MOLECULES = 10
 const val MAX_SAMPLES = 3
+const val MAX_MOLECULE = 5
 val moleculeType = listOf("A", "B", "C", "D", "E")
 
 enum class Module { DIAGNOSIS, MOLECULES, SAMPLES, LABORATORY, START_POS }
@@ -17,11 +18,17 @@ data class Molecules(val molecules: Map<String, Int>) {
     constructor(input: Scanner) : this(List(5) { input.nextInt() }.zip(moleculeType).map { (a, b) -> b to a }.toMap())
 
     operator fun get(key: String): Int = molecules[key]!!
-    operator fun plus(other: Molecules) = molecules.map { (a, b) -> a to b + other[a] }.toMolecules()
-    operator fun minus(other: Molecules) = molecules.map { (a, b) -> a to b - other[a] }.toMolecules()
+    operator fun plus(other: Molecules) = moleculeType.map { m -> m to this[m] + other[m] }.toMolecules()
+    operator fun minus(other: Molecules) = moleculeType.map { m -> m to this[m] - other[m] }.toMolecules()
     fun sum() = molecules.values.sum()
-    fun union(other: Molecules): Collection<String> = molecules.filter { (a, b) -> b > 0 && other[a] > 0 }.keys
+    fun commonTypes(other: Molecules): Collection<String> = moleculeType.filter { m -> this[m] > 0 && other[m] > 0 }
+    fun isValid() = sum() <= MAX_MOLECULES && molecules.all { (_, q) -> q in 0..MAX_MOLECULE }
+    fun contains(other: Molecules) = moleculeType.all { m -> contains(m, other[m]) }
+    fun contains(type: String, quantity: Int) = this[type] >= quantity
+    fun filterPositive() = molecules.map { (m, q) -> m to max(0, q) }.toMolecules()
 }
+
+val emptyMolecules = moleculeType.map { it to 0 }.toMolecules()
 
 data class Bot(
     val module: Module,
@@ -38,15 +45,23 @@ data class Bot(
         expertise = Molecules(input)
     )
 
-    val usable: Molecules = storage + expertise
 
-    fun hasEnough(costs: Molecules): Boolean {
-        return (usable - costs).molecules.all { (_, b) -> b >= 0 }
+    fun canProduce(sample: Sample): Boolean {
+        return storage.contains(realCosts(sample))
     }
 
-    fun need(costs: Molecules): Molecules {
-        return (costs - usable).molecules.map { (a, b) -> a to max(b, 0) }.toMolecules()
+    fun need(sample: Sample): Molecules {
+        return realCosts(sample) - storage
     }
+
+
+
+    fun realCosts(sample: Sample): Molecules {
+        return (sample.costs - expertise).filterPositive()
+    }
+
+
+
 
     fun isMoving() = eta > 0
 
@@ -76,8 +91,6 @@ data class Sample(
 
 
 interface Action
-
-
 class WaitAction : Action {
     override fun toString() = "WAIT"
 }
@@ -119,6 +132,10 @@ class StartState(game: Game) : State(game) {
     override fun action() = GotoAction(Module.SAMPLES)
 }
 
+class MovingState(game: Game) : State(game) {
+    override fun action() = MoveAction()
+}
+
 class SamplesState(game: Game) : State(game) {
     override fun action(): Action {
         /* TODO : Optimize rank selection */
@@ -132,27 +149,6 @@ class SamplesState(game: Game) : State(game) {
     }
 }
 
-class MoleculesState(game: Game) : State(game) {
-    override fun action(): Action {
-        return when {
-            /*TODO :
-                - Prepare most rentable Sample in priority
-                - Take molecules needed by opponent too in priority
-                - Prepare several Sample in one time, if possible
-                - Dont wait for molecule if opponent hold them
-             */
-            mySamples.any { me.hasEnough(it.costs) } -> GotoAction(Module.LABORATORY)
-            else -> mySamples.firstOrNull()
-                ?.let { me.need(it.costs) }
-                ?.apply { log(this.toString()) }
-                ?.union(availableMolecules)
-                ?.apply { log(this.toString()) }
-                ?.firstOrNull()?.let(::MoleculeAction)
-                ?: WaitAction()
-        }
-    }
-}
-
 class DiagnosisState(game: Game) : State(game) {
     override fun action(): Action {
         /* TODO :
@@ -161,10 +157,47 @@ class DiagnosisState(game: Game) : State(game) {
          */
         return if (mySamples.isEmpty()) GotoAction(Module.SAMPLES)
         else mySamples.firstOrNull { !it.isDiagnosed() }?.let(::SampleAction)
-            ?: mySamples.firstOrNull { me.need(it.costs).molecules.any { (_, m) -> m > 5 } }?.let(::SampleAction)
+            ?: mySamples.firstOrNull { me.need(it).molecules.any { (_, m) -> m > 5 } }?.let(::SampleAction)
             ?: GotoAction(Module.MOLECULES)
     }
 }
+
+class MoleculesState(game: Game) : State(game) {
+    override fun action(): Action {
+        /*TODO :
+           - Take account of gained expertise when creating several samples in one time
+           - Take molecules needed by opponent too in priority
+           - Dont wait for molecule if opponent hold them
+        */
+
+        val totalCost = mySamples.sortedBy { it.health.toFloat() / me.realCosts(it).sum() }
+            .fold(emptyMolecules) { totalCost, s ->
+                val newTotal = totalCost + me.realCosts(s)
+                val needed = (newTotal - me.storage).filterPositive()
+                if ((availableMolecules+me.storage).contains(newTotal) && (needed+me.storage).isValid()) newTotal
+                else totalCost
+            }
+
+        val needed = totalCost - me.storage
+        mySamples.forEach{ log(it.costs) }
+        log("Storage : ${me.storage}")
+        log(totalCost)
+        log(needed)
+
+        val action = needed.molecules.keys.firstOrNull{needed[it]>0}?.let { MoleculeAction(it) }
+
+        return when {
+            action != null -> action
+            //needed.sum() == 0  -> GotoAction(Module.LABORATORY)
+            else -> GotoAction(Module.LABORATORY)
+        }
+
+    }
+
+    fun rentability(sample: Sample) = sample.health.toFloat() / me.realCosts(sample).sum()
+
+}
+
 
 class LaboratoryState(game: Game) : State(game) {
     override fun action(): Action {
@@ -173,13 +206,13 @@ class LaboratoryState(game: Game) : State(game) {
              TODO : Goto the diagnosis module directly if there is interesting samples
              */
             mySamples.isEmpty() -> GotoAction(Module.SAMPLES)
-            mySamples.none { me.hasEnough(it.costs) } -> GotoAction(Module.MOLECULES)
-            else -> mySamples.firstOrNull { me.hasEnough(it.costs) }?.let (::SampleAction) ?: WaitAction()
+            mySamples.none { me.canProduce(it) } -> GotoAction(Module.MOLECULES)
+            else -> mySamples.firstOrNull { me.canProduce(it) }?.let(::SampleAction) ?: WaitAction()
         }
     }
 }
 
-class Game( val projects : List<Molecules>, input: Scanner) {
+class Game(val projects: List<Molecules>, input: Scanner) {
 
     val availableMolecules: Molecules
     val mySamples: List<Sample>
@@ -202,7 +235,8 @@ class Game( val projects : List<Molecules>, input: Scanner) {
     }
 
     fun currentState(): State =
-        when (me.module) {
+        if (me.isMoving()) MovingState(this)
+        else when (me.module) {
             Module.SAMPLES -> SamplesState(this)
             Module.DIAGNOSIS -> DiagnosisState(this)
             Module.LABORATORY -> LaboratoryState(this)
@@ -219,6 +253,6 @@ fun main() {
 
     // game loop
     while (true) {
-        println(Game(projects,input).currentState().action())
+        println(Game(projects, input).currentState().action())
     }
 }
