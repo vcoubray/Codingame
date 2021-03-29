@@ -24,7 +24,7 @@ data class Molecules(val molecules: Map<String, Int>) {
     fun commonTypes(other: Molecules): Collection<String> = moleculeType.filter { m -> this[m] > 0 && other[m] > 0 }
     fun isValid() = sum() <= MAX_MOLECULES && molecules.all { (_, q) -> q in 0..MAX_MOLECULE }
     fun contains(other: Molecules) = moleculeType.all { m -> contains(m, other[m]) }
-    fun contains(type: String, quantity: Int) = this[type] >= quantity
+    fun contains(type: String, quantity: Int = 1) = this[type] >= quantity
     fun filterPositive() = molecules.map { (m, q) -> m to max(0, q) }.toMolecules()
 }
 

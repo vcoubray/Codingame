@@ -11,6 +11,15 @@ abstract class State(game: Game) {
     val opp: Bot = game.opp
 
     abstract fun action(): Action
+
+    fun getBestSampleGroup(bot: Bot, samples: List<Sample>): SampleGroup? {
+        return samples.filter{it.isDiagnosed()}.getAllCombinations(bot)
+            .filter {
+                val cost = it.cost
+                availableMolecules.contains(cost) && (bot.storage + cost).isValid()
+            }
+            .maxWith(compareBy({ it.health }, { -it.cost.sum() }))
+    }
 }
 
 class StartState(game: Game) : State(game) {
@@ -25,13 +34,14 @@ class SamplesState(game: Game) : State(game) {
     override fun action(): Action {
         /* TODO : Optimize rank selection */
         val rank = when {
-            me.expertise.sum() > 10 -> 3
-            me.expertise.sum() > 5 -> 2
+            me.expertise.sum() > 15 -> 3
+            me.expertise.sum() > 10 -> 2
             else -> 1
         }
         return if (mySamples.size < MAX_SAMPLES) SearchAction(rank)
         else GotoAction(Module.DIAGNOSIS)
     }
+
 
 }
 
@@ -41,10 +51,19 @@ class DiagnosisState(game: Game) : State(game) {
             - Keep Samples if several of them can be done in one time
             - check cloud for interesting samples
          */
-        return if (mySamples.isEmpty()) GotoAction(Module.SAMPLES)
-        else mySamples.firstOrNull { !it.isDiagnosed() }?.let(::SampleAction)
-            ?: mySamples.firstOrNull { me.need(it).molecules.any { (_, m) -> m > 5 } }?.let(::SampleAction)
-            ?: GotoAction(Module.MOLECULES)
+
+
+        val notDiagnosed = mySamples.filter { !it.isDiagnosed() }
+        val notMakable =  mySamples.filter { me.need(it).molecules.any { (_, m) -> m > 5 } }
+        val cost = getBestSampleGroup(me, mySamples)?.cost?.sum()
+
+        return when {
+            mySamples.isEmpty() -> GotoAction(Module.SAMPLES)
+            notDiagnosed.isNotEmpty() -> SampleAction(notDiagnosed.first())
+            notMakable.isNotEmpty() ->  SampleAction(notMakable.first())
+            cost == 0 -> GotoAction(Module.LABORATORY)
+            else -> GotoAction(Module.MOLECULES)
+        }
     }
 }
 
@@ -55,44 +74,43 @@ class MoleculesState(game: Game) : State(game) {
            - Dont wait for molecule if opponent hold them
         */
 
-        log("availables : $availableMolecules")
-        mySamples.forEach{log(it.costs)}
-        val needed = getBestSampleGroup(me,mySamples)?.cost
+        log("Availables : $availableMolecules")
+        mySamples.forEach { log(it.costs) }
+        val oppNeeded = getBestSampleGroup(opp, oppSamples)?.cost?: emptyMolecules
+        val needed = getBestSampleGroup(me, mySamples)?.cost?: emptyMolecules
+
+        val moleculesScore = moleculeType.map {
+            when {
+                oppNeeded.contains(it)  && needed.contains(it) -> it to 2
+                needed.contains(it) -> it to 2
+                oppNeeded.contains(it) -> it to 1
+                else -> it to 0
+            }
+        }
+
         log("Needed : $needed")
-        val action = needed?.molecules?.keys?.firstOrNull { needed[it] > 0 }?.let { MoleculeAction(it) }
-
-
+        val action = moleculesScore.filter{(_,score) -> score> 0}.maxBy { (_,score)-> score }?.let { MoleculeAction(it.first) }
         return when {
+            me.storage.sum() >=10 -> GotoAction(Module.LABORATORY)
             action != null -> action
             else -> GotoAction(Module.LABORATORY)
         }
 
     }
 
-    fun getBestSampleGroup(bot: Bot, samples: List<Sample>): SampleGroup? {
-        return samples.getAllCombinations(bot)
-            .filter {
-                val cost = it.cost
-                availableMolecules.contains(cost) && (bot.storage + cost).isValid()
-            }
-//            .apply{
-//                log("--")
-//                forEach{ log("${it.cost} - ${it.health}") }
-//
-//            }
-            .maxWith(  compareBy({it.health},{ -it.cost.sum()  }))
-
-    }
 
 }
 
 
 class LaboratoryState(game: Game) : State(game) {
     override fun action(): Action {
+        /*
+         TODO : Goto the diagnosis module directly if there is interesting samples
+         */
+
+
+
         return when {
-            /*
-             TODO : Goto the diagnosis module directly if there is interesting samples
-             */
             mySamples.any { me.canProduce(it) } -> mySamples.firstOrNull { me.canProduce(it) }!!.let(::SampleAction)
             mySamples.size <= 1 -> GotoAction(Module.SAMPLES)
             else -> GotoAction(Module.MOLECULES)
