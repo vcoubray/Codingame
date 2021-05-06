@@ -2,7 +2,7 @@ package fr.vco.codingame.contest.springchallenge2021
 
 import java.util.*
 
-fun log (message: Any) = System.err.println(message.toString())
+fun log (message: Any?) = System.err.println(message.toString())
 
 data class Tree(
     val cellIndex: Int,
@@ -47,12 +47,18 @@ fun main(args: Array<String>) {
         if (input.hasNextLine()) {
             input.nextLine()
         }
-        for (i in 0 until numberOfPossibleMoves) {
-            val possibleMove = input.nextLine()
-        }
 
-        log(trees)
+        val possibleMoves = List(numberOfPossibleMoves) { input.nextLine() }
+        possibleMoves.forEach(::log)
+
+
         // GROW cellIdx | SEED sourceIdx targetIdx | COMPLETE cellIdx | WAIT <message>
-        println(trees.firstOrNull { it.isMine }?.cellIndex?.let{"COMPLETE $it"}?:"WAIT")
+        val bestTree = trees.filter { it.isMine }.maxBy{it.size}
+
+        val action = when (bestTree?.size) {
+            3 -> "COMPLETE ${bestTree.cellIndex}"
+            else -> bestTree?.let{"GROW ${it.cellIndex}"}?:"WAIT"
+        }
+        println(action)
     }
 }
