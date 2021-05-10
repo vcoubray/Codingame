@@ -1,6 +1,7 @@
 package fr.vco.codingame.contest.springchallenge2021
 
 import java.util.*
+import kotlin.math.max
 import kotlin.math.min
 
 const val SEED = 0
@@ -17,82 +18,16 @@ data class Tree(
     val isDormant: Boolean
 )
 
-class Cell(
-    val index: Int,
-    val richness: Int,
-    val neighIndex: List<Int>,
-    val neighByDirection: MutableList<List<Cell>> = mutableListOf(),
-    var neighByRange: List<List<Cell>> = emptyList()
-) {
-    override fun toString(): String {
-        val sb = StringBuffer("Cell [index = $index; richness = $richness;]\n")
-        neighByDirection.forEachIndexed { i, it ->
-            sb.append("dir $i : ${it.joinToString(" ") { c -> c.index.toString() }}\n")
-        }
-        return sb.toString()
-    }
-
-}
-
-
-fun List<Cell>.initNeigh(origin: Int) {
-    val cell = this[origin]
-    for (dir in 0 until 6) {
-        cell.neighByDirection.add(getLine(cell, dir, 3))
-        cell.neighByRange = getRangedNeighbors(cell, 3)
-    }
-}
-
-
-fun List<Cell>.getLine(origin: Cell, dir: Int, range: Int = 1): List<Cell> {
-
-    val line = mutableListOf<Cell>()
-    var cellIndex = origin.index
-    for (i in 0 until range) {
-        cellIndex = this[cellIndex].neighIndex[dir]
-        if (cellIndex == -1) break
-        line.add(this[cellIndex])
-    }
-    return line
-
-}
-
-
-fun List<Cell>.getRangedNeighbors(origin: Cell, range: Int = 1): List<List<Cell>> {
-
-    val neigh = List(range + 1) { mutableListOf<Cell>() }
-
-    val visited = mutableSetOf<Int>()
-    val toVisit = LinkedList<Pair<Int, Int>>()
-    toVisit.add(origin.index to 0)
-
-    while (toVisit.isNotEmpty()) {
-        val (cell, depth) = toVisit.pop()
-        if (!visited.contains(cell)) {
-            visited.add(cell)
-            neigh[depth].add(this[cell])
-            this[cell].neighIndex.forEach {
-                if (it != -1 && depth < range) {
-                    toVisit.add(it to depth + 1)
-                }
-            }
-        }
-
-    }
-    return List(range + 1) { neigh.take(it + 1).flatten() }
-}
-
-
 interface Action {
     fun cost(trees: List<Tree>): Int
 }
 
-class SeedAction(val source: Tree, val target: Cell, val message: String = "") : Action {
+class SeedAction(val source: Tree, val target: Cell, private val message: String = "") : Action {
     override fun toString() = "SEED ${source.cellIndex} ${target.index} $message"
     override fun cost(trees: List<Tree>) = trees.count { it.size == SEED }
 }
 
-class GrowAction(val tree: Tree, val message: String = "") : Action {
+class GrowAction(val tree: Tree, private val message: String = "") : Action {
     override fun toString() = "GROW ${tree.cellIndex} $message"
     override fun cost(trees: List<Tree>) = trees.count { it.size == tree.size + 1 } + baseCost()
     private fun baseCost() = when (tree.size) {
@@ -103,7 +38,7 @@ class GrowAction(val tree: Tree, val message: String = "") : Action {
     }
 }
 
-class CompleteAction(val tree: Tree, val message: String = "") : Action {
+class CompleteAction(val tree: Tree, private val message: String = "") : Action {
     override fun toString() = "COMPLETE ${tree.cellIndex} $message"
     override fun cost(trees: List<Tree>) = trees.count { it.size == GREAT } + 4
 }
@@ -128,31 +63,32 @@ fun List<Tree>.actionCost(action: String, size: Int = 0): Int =
     }
 
 
-fun main(args: Array<String>) {
-    val input = Scanner(System.`in`)
-    val numberOfCells = input.nextInt()
-    val cells = List(numberOfCells) {
-        Cell(
-            input.nextInt(),
-            input.nextInt(),
-            List(6) { input.nextInt() }
-        )
-    }
-    repeat(numberOfCells) { cells.initNeigh(it) }
+class Player(
+    val score: Int,
+    val sun: Int,
+    val trees: List<Tree>
+)
 
 
-    // game loop
-    while (true) {
-        val day = input.nextInt() // the game lasts 24 days: 0-23
-        val sunDir = day % 6
-        val nutrients = input.nextInt() // the base score you gain from the next COMPLETE action
-        val sun = input.nextInt() // your sun points
-        val score = input.nextInt() // your current score
-        val oppSun = input.nextInt() // opponent's sun points
-        val oppScore = input.nextInt() // opponent's score
-        val oppIsWaiting = input.nextInt() != 0 // whether your opponent is asleep until the next day
-        val numberOfTrees = input.nextInt() // the current amount of trees
-        val trees = List(numberOfTrees) {
+class State(
+    val day: Int,
+    val nutrients: Int,
+    val sun: Int,
+    val score: Int,
+    val oppSun: Int,
+    val oppScore: Int,
+    val oppIsWaiting: Boolean,
+    val trees: List<Tree>
+) {
+    constructor(input: Scanner) : this(
+        day = input.nextInt(), // the game lasts 24 days: 0-23
+        nutrients = input.nextInt(), // the base score you gain from the next COMPLETE action
+        sun = input.nextInt(), // your sun points
+        score = input.nextInt(), // your current score
+        oppSun = input.nextInt(), // opponent's sun points
+        oppScore = input.nextInt(), // opponent's score
+        oppIsWaiting = input.nextInt() != 0, // whether your opponent is asleep until the next day
+        trees = List(input.nextInt()) {
             Tree(
                 input.nextInt(),
                 input.nextInt(),
@@ -160,51 +96,67 @@ fun main(args: Array<String>) {
                 input.nextInt() != 0
             )
         }
+    )
 
-        val treesIndexes = trees.map { it.cellIndex }
+    val sunDir = day % 6
+    val treesIndexes = trees.map { it.cellIndex }
+    val me = Player(score,sun, trees.filter{it.isMine})
+    val opp = Player(score,sun, trees.filterNot{it.isMine})
+    val shadow = Board.calcPotentialShadow(me.trees, sunDir)
 
-        val numberOfPossibleMoves = input.nextInt()
-        if (input.hasNextLine()) {
-            input.nextLine()
-        }
-
-        val possibleMoves = List(numberOfPossibleMoves) { input.nextLine() }
-        possibleMoves.forEach(::log)
-        //println(possibleMoves.getOrElse(1) { "WAIT" })
-
-        val myTrees = trees.filter { it.isMine }
-
-        log("----")
+    fun bestAction(player: Player = me): String {
         val seedActions =
             if (day > 21) emptyList()
-            else myTrees.filterNot { it.isDormant }
+            else player.trees.filterNot { it.isDormant }
                 .filterNot { it.size <= LITTLE }
                 .map { t ->
-                    (cells[t.cellIndex].neighByRange[t.size] - cells[t.cellIndex].neighByRange[1])
+                    (Board[t.cellIndex].neighByRange[t.size] - Board[t.cellIndex].neighByRange[1])
                         .asSequence()
                         .filter { it.richness > 0 }
+                        .filter { shadow[it.index] == 0 }
                         .filterNot { treesIndexes.contains(it.index) }
                         .map { SeedAction(t, it) }
-                        .filter { it.cost(myTrees) <= sun }
+                        .filter { it.cost(player.trees) <= sun }
                         .toList()
                 }
                 .flatten()
         //seedActions.forEach(::log)
 
-        val growActions = myTrees.filter { it.size != min(GREAT, 24 - day + 2 - it.size) }.map { GrowAction(it) }
-            .filter { it.cost(myTrees) <= sun }
+        val growActions = player.trees.filter { it.size != min(GREAT, 24 - day + 2 - it.size) }.map { GrowAction(it) }
+            .filter { it.cost(player.trees) <= sun }
         //growActions.forEach(::log)
 
         val completeActions =
-            if (myTrees.count { it.size == GREAT } < min(24 - day, 5))
+            if (player.trees.count { it.size == GREAT } < min(24 - day, 5))
                 emptyList()
             else
-                myTrees.filter { it.size == GREAT }.map { CompleteAction(it) }.filter { it.cost(myTrees) <= sun }
-        val actions = completeActions.sortedByDescending { cells[it.tree.cellIndex].richness } +
+                player.trees.filter { it.size == GREAT }.map { CompleteAction(it) }.filter { it.cost(player.trees) <= sun }
+        val actions = completeActions.sortedByDescending { Board[it.tree.cellIndex].richness } +
             growActions.sortedByDescending { it.tree.size } +
-            seedActions.sortedByDescending { cells[it.target.index].richness }
-        actions.forEach(::log)
-        println(actions.firstOrNull() ?: "WAIT")
+            seedActions.sortedByDescending { Board[it.target.index].richness }
 
+        return actions.firstOrNull()?.toString() ?: "WAIT"
+    }
+
+}
+
+fun possibleMoves(input: Scanner): List<String> {
+    val numberOfPossibleMoves = input.nextInt()
+    if (input.hasNextLine()) {
+        input.nextLine()
+    }
+    return List(numberOfPossibleMoves) { input.nextLine() }
+}
+
+fun main(args: Array<String>) {
+    val input = Scanner(System.`in`)
+
+    Board.init(input)
+
+    // game loop
+    while (true) {
+        val state = State(input)
+        possibleMoves(input)
+        println(state.bestAction())
     }
 }
