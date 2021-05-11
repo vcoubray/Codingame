@@ -71,7 +71,7 @@ object Board {
         return shadow
     }
 
-    fun calcPotentialShadow(trees: List<Tree>, sunDir: Int): List<Int> {
+    fun calcPotentialShadow(trees: List<Tree> ): List<Int> {
         val shadow = MutableList(cells.size) { 0 }
         trees.forEach { tree ->
             cells[tree.cellIndex].neighByDirection.flatten().forEach { cell ->
@@ -81,6 +81,16 @@ object Board {
         return shadow
     }
 
+
+    fun calcPotentialShadowCount(trees: List<Tree>) :List<Int>{
+        val shadow = MutableList(cells.size) { 0 }
+        trees.forEach { tree ->
+            cells[tree.cellIndex].neighByDirection.flatten().forEach { cell ->
+                shadow[cell.index] +=1
+            }
+        }
+        return shadow
+    }
 
     fun getRangedNeighbors(origin: Cell, range: Int = 1): List<List<Cell>> {
 
