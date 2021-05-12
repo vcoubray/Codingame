@@ -92,6 +92,17 @@ object Board {
         return shadow
     }
 
+    fun getRentabilityBoard(trees:List<Tree>): List<Int>{
+        val treeBoard = MutableList(cells.size){false}
+        trees.forEach{treeBoard[it.cellIndex] = true}
+        val rentability = MutableList(cells.size){5}
+
+        cells.forEach{ cell ->
+            rentability[cell.index] = cell.neighByDirection.count{n -> n.none{treeBoard[it.index]}} * 100 / 6
+        }
+        return rentability
+    }
+
     fun getRangedNeighbors(origin: Cell, range: Int = 1): List<List<Cell>> {
 
         val neigh = List(range + 1) { mutableListOf<Cell>() }
