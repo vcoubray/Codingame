@@ -39,6 +39,7 @@ class SampleGroup(private val bot: Bot, private val samples: List<Sample>) {
     val health =  samples.sumBy { it.health }
     val gain = samples.fold(emptyMolecules) { acc, s -> acc.add(s.gain, 1) }
     val rentability = health.toFloat() / cost.sum()
+    val size = samples.size
 
     private fun cost(): Molecules {
         var expertise = bot.expertise

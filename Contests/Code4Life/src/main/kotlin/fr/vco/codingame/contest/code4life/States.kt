@@ -89,7 +89,13 @@ class MoleculesState(game: Game) : State(game) {
         }
 
         log("Needed : $needed")
-        val action = moleculesScore.filter{(_,score) -> score> 0}.maxBy { (_,score)-> score }?.let { MoleculeAction(it.first) }
+        val action = moleculesScore
+            .filter{(_,score) -> score> 0}
+            .maxWith (compareBy(
+                { (_,score) -> score },
+                {(m,_)-> needed[m] }
+            ))
+            ?.let { MoleculeAction(it.first) }
         return when {
             me.storage.sum() >=10 -> GotoAction(Module.LABORATORY)
             action != null -> action
@@ -108,11 +114,11 @@ class LaboratoryState(game: Game) : State(game) {
          TODO : Goto the diagnosis module directly if there is interesting samples
          */
 
-
-
+        val bestSampleGroup = getBestSampleGroup(me, mySamples)
         return when {
+            bestSampleGroup?.size?:0 == 0 -> GotoAction(Module.SAMPLES)
             mySamples.any { me.canProduce(it) } -> mySamples.firstOrNull { me.canProduce(it) }!!.let(::SampleAction)
-            mySamples.size <= 1 -> GotoAction(Module.SAMPLES)
+            //mySamples.size <= 1 -> GotoAction(Module.SAMPLES)
             else -> GotoAction(Module.MOLECULES)
 //            mySamples.isEmpty() -> GotoAction(Module.SAMPLES)
 //            mySamples.none { me.canProduce(it) } -> GotoAction(Module.MOLECULES)
