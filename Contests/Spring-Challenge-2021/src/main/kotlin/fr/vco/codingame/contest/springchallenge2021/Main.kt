@@ -9,9 +9,9 @@ fun log(message: Any?) = System.err.println(message.toString())
 
 data class Tree(
     val cellIndex: Int,
-    val size: Int,
-    val isMine: Boolean,
-    val isDormant: Boolean
+    var size: Int,
+    var isMine: Boolean,
+    var isDormant: Boolean
 )
 
 interface Action
@@ -71,6 +71,9 @@ class State(
         }
     )
 
+    val boardTrees = MutableList<Tree?>(37) { null }
+
+
     val sunDir = day % 6
     val treesIndexes = trees.map { it.cellIndex }
     val me = Player(score, sun, trees.filter { it.isMine })
@@ -79,6 +82,10 @@ class State(
     val globalShadow = Board.calcPotentialShadowCount(trees)
     val rentability = Board.getRentabilityBoard(me.trees)
     val globalRentability = Board.getRentabilityBoard(me.trees)
+
+    init {
+        trees.forEach { boardTrees[it.cellIndex] = it }
+    }
 
     fun bestAction(player: Player = me): String {
 
@@ -161,15 +168,11 @@ class State(
         if (shouldGrow2)
             return GrowAction(availableMediumTrees.firstOrNull()!!).toString()
 
-
         if (availableLittleTrees.isNotEmpty() && player.costs[GROW_1_ACTION] <= player.sun && day < 21)
             return GrowAction(availableLittleTrees.firstOrNull()!!).toString()
 
-
         if (availableSeeds.isNotEmpty() && player.costs[GROW_0_ACTION] <= player.sun && day < 20)
             return GrowAction(availableSeeds.firstOrNull()!!).toString()
-
-
 
         return "WAIT"
     }
@@ -196,14 +199,57 @@ fun main(args: Array<String>) {
     while (true) {
         val stateInit = System.currentTimeMillis()
         val state = State(input)
+        val shadow = Board.calcShadow(state.trees, state.day % 6)
+        val income = state.trees
+            .filter { it.let { it.isMine && shadow[it.cellIndex] < it.size } }
+            .sumBy { it.size }
         possibleMoves(input)
         log("Read state in ${System.currentTimeMillis() - stateInit}ms")
         val start = System.currentTimeMillis()
-        println(state.bestAction())
+        val root = Node(state, income)
+        log("Create state in  ${System.currentTimeMillis() - start}ms")
+        val result = BFS.explore(root, 40)
+
+        if (result != null) {
+            log("Find a good Node : score : ${result.nodeScore}, day : ${result.day}, ${result.income}, ${result.sun}, ${result.score}")
+            println(result.getFirstAction())
+        } else {
+            log("No good node found :(")
+            println("WAIT")
+        }
+
+
         val executionTime = System.currentTimeMillis() - start
         maxTime = max(executionTime, maxTime)
         log("End turn in ${executionTime}ms ")
-
         log("Max Execution in ${maxTime}ms ")
     }
 }
+
+
+
+
+// HEURISTIQUE
+//fun main(args: Array<String>) {
+//    val input = Scanner(System.`in`)
+//
+//    val startInit = System.currentTimeMillis()
+//    Board.init(input)
+//    log("init board in ${System.currentTimeMillis() - startInit}ms")
+//
+//    var maxTime = 0L
+//    // game loop
+//    while (true) {
+//        val stateInit = System.currentTimeMillis()
+//        val state = State(input)
+//        possibleMoves(input)
+//        log("Read state in ${System.currentTimeMillis() - stateInit}ms")
+//        val start = System.currentTimeMillis()
+//        println(state.bestAction())
+//        val executionTime = System.currentTimeMillis() - start
+//        maxTime = max(executionTime, maxTime)
+//        log("End turn in ${executionTime}ms ")
+//
+//        log("Max Execution in ${maxTime}ms ")
+//    }
+//}

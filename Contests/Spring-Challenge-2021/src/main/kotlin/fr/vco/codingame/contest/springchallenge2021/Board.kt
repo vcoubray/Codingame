@@ -60,16 +60,29 @@ object Board {
     }
 
 
-    fun calcShadow(trees: List<Tree>, sunDir: Int): List<Int> {
+    fun calcShadow(trees: List<Tree?>, sunDir: Int): List<Int> {
         val shadow = MutableList(cells.size) { 0 }
         trees.forEach { tree ->
-            for (i in 0 until tree.size) {
-                val index = cells[tree.cellIndex].neighByDirection[sunDir].getOrNull(i)?.index ?: -1
-                if (index != -1) shadow[index] = max(shadow[index], tree.size)
+            if(tree != null) {
+                for (i in 0 until tree.size) {
+                    val index = cells[tree.cellIndex].neighByDirection[sunDir].getOrNull(i)?.index ?: -1
+                    if (index != -1) shadow[index] = max(shadow[index], tree.size)
+                }
             }
         }
         return shadow
     }
+
+//    fun calcShadow(trees: List<Tree>, sunDir: Int): List<Int> {
+//        val shadow = MutableList(cells.size) { 0 }
+//        trees.forEach { tree ->
+//            for (i in 0 until tree.size) {
+//                val index = cells[tree.cellIndex].neighByDirection[sunDir].getOrNull(i)?.index ?: -1
+//                if (index != -1) shadow[index] = max(shadow[index], tree.size)
+//            }
+//        }
+//        return shadow
+//    }
 
     fun calcPotentialShadow(trees: List<Tree> ): List<Int> {
         val shadow = MutableList(cells.size) { 0 }
