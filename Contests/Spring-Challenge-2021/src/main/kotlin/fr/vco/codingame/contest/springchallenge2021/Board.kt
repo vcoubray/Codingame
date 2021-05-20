@@ -3,6 +3,8 @@ package fr.vco.codingame.contest.springchallenge2021
 import java.util.*
 import kotlin.math.max
 
+const val BOARD_SIZE = 37
+
 class Cell(
     val index: Int,
     val richness: Int,
@@ -60,18 +62,38 @@ object Board {
     }
 
 
-    fun calcShadow(trees: List<Tree?>, sunDir: Int): List<Int> {
-        val shadow = MutableList(cells.size) { 0 }
-        trees.forEach { tree ->
-            if(tree != null) {
-                for (i in 0 until tree.size) {
-                    val index = cells[tree.cellIndex].neighByDirection[sunDir].getOrNull(i)?.index ?: -1
-                    if (index != -1) shadow[index] = max(shadow[index], tree.size)
-                }
-            }
-        }
-        return shadow
-    }
+//    fun calcShadow(trees: List<Tree?>, sunDir: Int): List<Int> {
+//        val shadow = MutableList(cells.size) { 0 }
+//        trees.forEach { tree ->
+//            if (tree != null) {
+//                for (i in 0 until tree.size) {
+//                    val index = cells[tree.cellIndex].neighByDirection[sunDir].getOrNull(i)?.index ?: -1
+//                    if (index != -1) shadow[index] = max(shadow[index], tree.size)
+//                }
+//            }
+//        }
+//        return shadow
+//    }
+
+
+
+
+//    fun calcBitShadow(trees: BitSet, treeSize: Int, sunDir: Int): BitSet {
+//        val shadow = BitSet(BOARD_SIZE)
+//        for (i in 0 until BOARD_SIZE) {
+//            for (j in 0 until treeSize) {
+//                cells[i].neighByDirection[sunDir].getOrNull(j)?.let { shadow[it.index] = true }
+//            }
+//        }
+//        return shadow
+//    }
+
+//    fun calcBitShadow(treeSize: List<BitSet>, sunDir: Int): List<BitSet> {
+//        return treeSize.drop(1).mapIndexed { size, trees ->
+//            calcBitShadow(trees, size, sunDir)
+//        }
+//
+//    }
 
 //    fun calcShadow(trees: List<Tree>, sunDir: Int): List<Int> {
 //        val shadow = MutableList(cells.size) { 0 }
@@ -84,37 +106,37 @@ object Board {
 //        return shadow
 //    }
 
-    fun calcPotentialShadow(trees: List<Tree> ): List<Int> {
-        val shadow = MutableList(cells.size) { 0 }
-        trees.forEach { tree ->
-            cells[tree.cellIndex].neighByDirection.flatten().forEach { cell ->
-                shadow[cell.index] = 3
-            }
-        }
-        return shadow
-    }
-
-
-    fun calcPotentialShadowCount(trees: List<Tree>) :List<Int>{
-        val shadow = MutableList(cells.size) { 0 }
-        trees.forEach { tree ->
-            cells[tree.cellIndex].neighByDirection.flatten().forEach { cell ->
-                shadow[cell.index] +=1
-            }
-        }
-        return shadow
-    }
-
-    fun getRentabilityBoard(trees:List<Tree>): List<Int>{
-        val treeBoard = MutableList(cells.size){false}
-        trees.forEach{treeBoard[it.cellIndex] = true}
-        val rentability = MutableList(cells.size){5}
-
-        cells.forEach{ cell ->
-            rentability[cell.index] = cell.neighByDirection.count{n -> n.none{treeBoard[it.index]}} * 100 / 6
-        }
-        return rentability
-    }
+//    fun calcPotentialShadow(trees: List<Tree>): List<Int> {
+//        val shadow = MutableList(cells.size) { 0 }
+//        trees.forEach { tree ->
+//            cells[tree.cellIndex].neighByDirection.flatten().forEach { cell ->
+//                shadow[cell.index] = 3
+//            }
+//        }
+//        return shadow
+//    }
+//
+//
+//    fun calcPotentialShadowCount(trees: List<Tree>): List<Int> {
+//        val shadow = MutableList(cells.size) { 0 }
+//        trees.forEach { tree ->
+//            cells[tree.cellIndex].neighByDirection.flatten().forEach { cell ->
+//                shadow[cell.index] += 1
+//            }
+//        }
+//        return shadow
+//    }
+//
+//    fun getRentabilityBoard(trees: List<Tree>): List<Int> {
+//        val treeBoard = MutableList(cells.size) { false }
+//        trees.forEach { treeBoard[it.cellIndex] = true }
+//        val rentability = MutableList(cells.size) { 5 }
+//
+//        cells.forEach { cell ->
+//            rentability[cell.index] = cell.neighByDirection.count { n -> n.none { treeBoard[it.index] } } * 100 / 6
+//        }
+//        return rentability
+//    }
 
     fun getRangedNeighbors(origin: Cell, range: Int = 1): List<List<Cell>> {
 
@@ -128,7 +150,7 @@ object Board {
             val (cell, depth) = toVisit.pop()
             if (!visited.contains(cell)) {
                 visited.add(cell)
-                neigh[depth].add(cells[cell])
+                if(depth > 1) neigh[depth].add(cells[cell])
                 cells[cell].neighIndex.forEach {
                     if (it != -1 && depth < range) {
                         toVisit.add(it to depth + 1)
@@ -139,6 +161,7 @@ object Board {
         }
         return List(range + 1) { neigh.take(it + 1).flatten() }
     }
+
 
 
 }

@@ -1,183 +1,271 @@
 package fr.vco.codingame.contest.springchallenge2021
 
-import java.util.*
+import kotlin.math.max
+import kotlin.math.min
+
+const val NODES_POOL_SIZE = 50_000
+val NODES_POOL = List(NODES_POOL_SIZE) { Node() }
+
 
 object BFS {
     var totalCount = 0L
-    var totalCreatedNode = 0L
     var explorationCount = 0
-    fun explore(root: Node, timeout: Int = 30): Node? {
-        explorationCount++
-        val toVisit = LinkedList<Node>()
-        toVisit.add(root)
-        var count = 0
+    var maxExploredCount = 0
+    var maxExecutionTime = 0L
+
+    //var toVisit = LinkedList<Int>()
+
+
+    fun explore(state: State, timeout: Int = 30): Node {
         val startBFS = System.currentTimeMillis()
         val end = startBFS + timeout
-        var bestNode: Node? = null
-        while (toVisit.isNotEmpty() && System.currentTimeMillis() < end) {
-            val current = toVisit.pop()
+        explorationCount++
+
+        val rootIndex = 0
+        NODES_POOL[rootIndex].fromState(state)
+        // toVisit.clear()
+        //toVisit.add(rootIndex)
+
+//        NODES_POOL[rootIndex].initChildren(rootIndex+1)
+//        NODES_POOL[rootIndex].children.forEach{log(NODES_POOL[it])}
+
+        var nextToVisit = rootIndex
+        var nextToCreateIndex = rootIndex + 1
+        var bestNode = NODES_POOL[rootIndex]
+        var maxTurn = NODES_POOL[rootIndex].turn
+        while (nextToVisit < nextToCreateIndex && System.currentTimeMillis() < end && nextToCreateIndex < NODES_POOL_SIZE - 100) {
+            val current = NODES_POOL[nextToVisit]
+            nextToVisit++
+            nextToCreateIndex = current.initChildren(nextToCreateIndex)
             current.children.forEach {
-                toVisit.add(it)
-            }
-            ++count
-            if (bestNode?.nodeScore ?: 0.0 <= current.nodeScore) {
-                bestNode = current
+                if (NODES_POOL[it].nodeScore > bestNode.nodeScore) {
+                    bestNode = NODES_POOL[it]
+                }
+                maxTurn = NODES_POOL[it].turn
+                //toVisit.add(it)
             }
         }
-        totalCount += count
-        totalCreatedNode += count + toVisit.size
-        log("End BFS with $count nodes in ${System.currentTimeMillis() - startBFS}ms")
+
+        maxExploredCount = max(nextToCreateIndex, maxExploredCount)
+        val executionTime = System.currentTimeMillis() - startBFS
+        if (timeout < 100) {
+            maxExecutionTime = max(executionTime, maxExecutionTime)
+        }
+        totalCount += nextToCreateIndex
+        log("End BFS with $nextToCreateIndex nodes in ${executionTime}ms")
+        log("Depth Reached : ${maxTurn - NODES_POOL[rootIndex].turn}")
+        log("------")
         log("Total explored Nodes : $totalCount")
-        log("Total created Nodes : $totalCreatedNode")
         log("Average explored Nodes : ${totalCount / explorationCount}")
+        log("Max Explored Nodes : $maxExploredCount")
+        log("Max BFS Execution Time : $maxExecutionTime")
         return bestNode
     }
 }
 
-class Node(
-    var parent: Node?,
-    var day: Int,
-    var nutrients: Int,
-    var income: Int,
-    var sun: Int,
-    var score: Int,
-    var oppSun: Int,
-    var oppScore: Int,
-    var isWaiting: Boolean,
-    var oppIsWaiting: Boolean,
-    val trees: MutableList<Tree?> = MutableList(37) { null },
-    var action: String = ""
-) {
-
-    //val income: Int =
-
-    val nodeScore: Double = (income * (23 - day) + sun / 3 + score).toDouble()
-
-    constructor(state: State, income: Int) : this(
-        null,
-        state.day,
-        state.nutrients,
-        income,
-        state.sun,
-        state.score,
-        state.oppSun,
-        state.oppScore,
-        false,
-        state.oppIsWaiting,
-        state.boardTrees.toMutableList()
-    )
-
-    fun prepareChildren() =
-        Node(
-            this,
-            day,
-            nutrients,
-            income,
-            sun,
-            score,
-            oppSun,
-            oppScore,
-            isWaiting,
-            oppIsWaiting,
-            trees.map { it?.copy() }.toMutableList()
-        )
+data class BFSTree(
+    var cellIndex: Int = 0,
+    var size: Int = -1,
+    var isMine: Boolean = false,
+    var isDormant: Boolean = false
+)
 
 
-    fun getCosts(trees: List<Tree>) = listOf(
-        trees.count { it.size == 0 } + SEED_COST,
-        trees.count { it.size == 1 } + GROW_0_COST,
-        trees.count { it.size == 2 } + GROW_1_COST,
-        trees.count { it.size == 3 } + GROW_2_COST,
-        COMPLETE_COST
-    )
+class Node {
+
+    var parent: Node? = null
+    var day: Int = 0
+    var turn: Int = 0
+    var nutrients: Int = 0
+    var income: Int = 0
+    var sun: Int = 0
+    var score: Int = 0
+    var oppSun: Int = 0
+    var oppScore: Int = 0
+    var isWaiting: Boolean = false
+    var oppIsWaiting: Boolean = false
+    val trees: List<BFSTree> = List(BOARD_SIZE) { BFSTree(it) }
 
 
-    val children: List<Node> by lazy {
-        if (day >= 24) {
-            emptyList<Node>()
-        } else {
-            val myTrees = trees.filterNotNull().filter { it.isMine }
-            val costs = getCosts(myTrees)
-            val actions = mutableListOf<Node>()
-            val seedCount = myTrees.count { it.size == SEED }
-            trees.forEach { t ->
-                t?.let { tree ->
-                    when {
-                        tree.isDormant -> return@let
-                        !tree.isMine -> return@let
-                        tree.size == GREAT && day > 12 && costs[COMPLETE_ACTION] <= sun -> {
-                            actions.add(complete(tree, costs[COMPLETE_ACTION]))
-                        }
-                        tree.size < GREAT && costs[GROW_ACTION[tree.size]] <= sun -> {
-                            actions.add(grow(tree, costs[GROW_ACTION[tree.size]]))
-                        }
-                        tree.size > LITTLE && seedCount == 0 && costs[SEED_ACTION] <= sun -> {
-                            val targets = Board[tree.cellIndex].neighByRange[tree.size]
-                            targets.forEach {
-                                if (it.richness > 0 && trees[it.index] == null)
-                                    actions.add(seed(tree, it, costs[SEED_ACTION]))
-                            }
+    var action: String = "WAIT"
+    var nodeScore: Double = 0.0
+    var costs: MutableList<Int> = MutableList(5) { 0 }
+    val children: MutableList<Int> = mutableListOf()
+
+
+    override fun toString(): String {
+        return "Day: $day, action: $action, NodeScore: $nodeScore, income: $income, sun: $sun, score: $score"
+    }
+
+    private fun calculateNodeScore() {
+        nodeScore = when {
+            day <= 8 -> income * (23.0 - day) + sun
+            day in 8..18 -> income * (23.0 - day) + sun + score
+            else -> sun / 3.0 + score
+        }
+    }
+
+    fun fromState(state: State) {
+        parent = null
+        day = state.day
+        turn = state.turn
+        nutrients = state.nutrients
+        sun = state.sun
+        score = state.score
+        oppSun = state.oppSun
+        oppScore = state.oppScore
+        isWaiting = false
+        oppIsWaiting = state.oppIsWaiting
+        state.boardTrees.forEachIndexed { i, tree ->
+            trees[i].apply {
+                cellIndex = tree?.cellIndex ?: i
+                size = tree?.size ?: -1
+                isMine = tree?.isMine ?: false
+                isDormant = tree?.isDormant ?: false
+            }
+        }
+        calcIncome()
+        calcCosts()
+    }
+
+    private fun prepareChildren(index: Int) =
+        NODES_POOL[index].also {
+            it.parent = this@Node
+            it.day = day
+            it.turn = turn + 1
+            it.nutrients = nutrients
+            it.income = income
+            it.sun = sun
+            it.score = score
+            it.oppScore = oppScore
+            it.isWaiting = isWaiting
+            it.oppIsWaiting = oppIsWaiting
+            this.trees.forEachIndexed { i, tree ->
+                it.trees[i].apply {
+                    cellIndex = tree.cellIndex
+                    size = tree.size
+                    isMine = tree.isMine
+                    isDormant = tree.isDormant
+                }
+            }
+            this.costs.forEachIndexed{i, c -> it.costs[i] = c}
+            this.children.add(index)
+        }
+
+    private fun calcCosts(isMine: Boolean = true) {
+        costs[SEED_ACTION] = trees.count { it.size == 0 && it.isMine == isMine } + SEED_COST
+        costs[GROW_0_ACTION] = trees.count { it.size == 1 && it.isMine == isMine } + GROW_0_COST
+        costs[GROW_1_ACTION] = trees.count { it.size == 2 && it.isMine == isMine } + GROW_1_COST
+        costs[GROW_2_ACTION] = trees.count { it.size == 3 && it.isMine == isMine } + GROW_2_COST
+        costs[COMPLETE_ACTION] = COMPLETE_COST
+    }
+
+    private fun calcIncome() {
+        val invertSunDir = (day + 3) % 6
+        income = 0
+        trees.forEach { tree ->
+            if (tree.size != NONE && tree.isMine) {
+                if (Board[tree.cellIndex].neighByDirection[invertSunDir].none { trees[it.index].size >= tree.size })
+                    income += tree.size
+            }
+        }
+    }
+
+
+    fun initChildren(nextIndex: Int): Int {
+        children.clear()
+        var index = nextIndex
+        if (day < 24) {
+
+            val seedCount = trees.count { it.size == SEED && it.isMine }
+            val greatTreeCount = trees.count { it.size == GREAT && it.isMine }
+            trees.forEach loop@{ tree ->
+                if (tree.isDormant || !tree.isMine || tree.size == NONE) return@loop
+                if (tree.size == GREAT &&
+                    day > 12 &&
+                    greatTreeCount >= min(4, 23 - day) &&
+                    costs[COMPLETE_ACTION] <= sun
+                ) {
+                    complete(index, tree, costs[COMPLETE_ACTION])
+                    index++
+                }
+                if (tree.size < GREAT && costs[GROW_ACTION[tree.size]] <= sun) {
+                    grow(index, tree, costs[GROW_ACTION[tree.size]])
+                    index++
+                }
+                if (tree.size > LITTLE && seedCount == 0 && costs[SEED_ACTION] <= sun) {
+                    val targets = Board[tree.cellIndex].neighByRange[tree.size]
+                    targets.forEach {
+                        if (it.richness > 0 && trees[it.index].size == NONE) {
+                            seed(index, tree, it, costs[SEED_ACTION])
+                            index++
                         }
                     }
                 }
             }
-            actions.add(newDay()) // WAIT
-            actions
+            newDay(index)// WAIT
+            index++
         }
+        return index
     }
 
 
-    private fun newDay(): Node {
+    private fun newDay(nodeIndex: Int): Node {
 
-        return this.prepareChildren().apply {
-            this.day++
-            val shadow = Board.calcShadow(trees, this.day % 6)
-            this.income = trees
-                .filter { it?.let { it.isMine && shadow[it.cellIndex] < it.size } ?: false }
-                .sumBy { it?.size ?: 0 }
-            this.isWaiting = false
-            this.oppIsWaiting = false
-            this.trees.forEach { it?.isDormant = false }
-            this.sun += this.income
-            this.action = "WAIT"
-
-        }
-    }
-
-    private fun seed(tree: Tree, target: Cell, cost: Int): Node {
-        return prepareChildren().apply {
-            this.sun -= cost
-            this.trees[target.index] = Tree(
-                target.index,
-                0,
-                true,
-                true
-            )
-            this.trees[tree.cellIndex]?.isDormant = true
-            this.action = SeedAction(tree, target).toString()
-        }
-    }
-
-    private fun complete(tree: Tree, cost: Int): Node {
-        return prepareChildren().apply {
-            this.sun -= cost
-            this.income -= 3
-            this.trees[tree.cellIndex] = null
-            this.score += nutrients + BONUS_RICHNESS[Board[tree.cellIndex].richness]
-            this.nutrients--
-            this.action = CompleteAction(tree).toString()
-        }
-    }
-
-    private fun grow(tree: Tree, cost: Int): Node {
-        return prepareChildren().apply {
-            this.sun -= cost
-            this.income += 1
-            this.trees[tree.cellIndex]?.let { t ->
-                t.size++
-                t.isDormant = true
+        return this.prepareChildren(nodeIndex).also {
+            it.day++
+            if (it.day < 24) {
+                it.calcIncome()
+                it.isWaiting = false
+                it.oppIsWaiting = false
+                it.trees.forEach { t-> t.isDormant = false }
+                it.sun += it.income
+            } else {
+                it.income = 0
             }
-            this.action = GrowAction(tree).toString()
+            it.action = "WAIT"
+            it.calculateNodeScore()
+
+        }
+    }
+
+    private fun seed(nodeIndex: Int, source: BFSTree, target: Cell, cost: Int): Node {
+        return prepareChildren(nodeIndex).also {
+            it.sun -= cost
+            it.trees[target.index].cellIndex = target.index
+            it.trees[target.index].size = 0
+            it.trees[target.index].isMine = true
+            it.trees[target.index].isDormant = true
+            it.trees[source.cellIndex].isDormant = true
+            it.action = "SEED ${source.cellIndex} ${target.index}"
+            it.costs[SEED_ACTION]++
+            it.calculateNodeScore()
+        }
+    }
+
+    private fun complete(nodeIndex: Int, tree: BFSTree, cost: Int): Node {
+        return prepareChildren(nodeIndex).also {
+            it.sun -= cost
+            it.income -= 3
+            it.trees[tree.cellIndex].size = -1
+            it.score += nutrients + BONUS_RICHNESS[Board[tree.cellIndex].richness]
+            it.nutrients--
+            it.action = "COMPLETE ${tree.cellIndex}"
+            it.costs[GROW_2_ACTION]--
+            it.calculateNodeScore()
+        }
+    }
+
+    private fun grow(nodeIndex: Int, tree: BFSTree, cost: Int): Node {
+        return prepareChildren(nodeIndex).also {
+            it.sun -= cost
+            it.income += 1
+            it.costs[tree.size]--
+            it.costs[tree.size+1]++
+            it.trees[tree.cellIndex].size++
+            it.trees[tree.cellIndex].isDormant = true
+            it.action = "GROW ${tree.cellIndex}"
+            it.calculateNodeScore()
         }
     }
 

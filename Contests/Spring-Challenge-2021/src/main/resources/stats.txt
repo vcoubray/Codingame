@@ -1,0 +1,13 @@
+BFS Solo non opti :
+
+Nodes explorés en moyenne : 10k-15k en 30ms
+Profondeur de l'arbre : 6-7
+Timeout régulier au dela de 30ms.
+
+BFS Solo Opti
+Nodes explorés en moyenne : 25k-50k en 30ms
+Profondeur de l'arbre : 6-7
+Timeout régulier au dela de 30ms.
+
+Total explored Nodes : 1147538
+Average explored Nodes : 17386

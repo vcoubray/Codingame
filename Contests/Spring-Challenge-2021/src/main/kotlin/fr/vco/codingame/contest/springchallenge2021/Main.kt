@@ -2,8 +2,6 @@ package fr.vco.codingame.contest.springchallenge2021
 
 import java.util.*
 import kotlin.math.max
-import kotlin.math.min
-
 
 fun log(message: Any?) = System.err.println(message.toString())
 
@@ -28,19 +26,19 @@ class CompleteAction(val tree: Tree, private val message: String = "") : Action 
     override fun toString() = "COMPLETE ${tree.cellIndex} $message"
 }
 
-class Player(
-    val score: Int,
-    val sun: Int,
-    val trees: List<Tree>
-) {
-    val costs = listOf(
-        trees.count { it.size == 0 } + SEED_COST,
-        trees.count { it.size == 1 } + GROW_0_COST,
-        trees.count { it.size == 2 } + GROW_1_COST,
-        trees.count { it.size == 3 } + GROW_2_COST,
-        COMPLETE_COST
-    )
-}
+//class Player(
+//    val score: Int,
+//    val sun: Int,
+//    val trees: List<Tree>
+//) {
+//    val costs = listOf(
+//        trees.count { it.size == 0 } + SEED_COST,
+//        trees.count { it.size == 1 } + GROW_0_COST,
+//        trees.count { it.size == 2 } + GROW_1_COST,
+//        trees.count { it.size == 3 } + GROW_2_COST,
+//        COMPLETE_COST
+//    )
+//}
 
 
 class State(
@@ -71,111 +69,112 @@ class State(
         }
     )
 
+    var turn = 0
     val boardTrees = MutableList<Tree?>(37) { null }
 
 
-    val sunDir = day % 6
-    val treesIndexes = trees.map { it.cellIndex }
-    val me = Player(score, sun, trees.filter { it.isMine })
-    val opp = Player(oppScore, oppSun, trees.filterNot { it.isMine })
-    val myShadow = Board.calcPotentialShadowCount(me.trees)
-    val globalShadow = Board.calcPotentialShadowCount(trees)
-    val rentability = Board.getRentabilityBoard(me.trees)
-    val globalRentability = Board.getRentabilityBoard(me.trees)
+//    val sunDir = day % 6
+//    val treesIndexes = trees.map { it.cellIndex }
+//    val me = Player(score, sun, trees.filter { it.isMine })
+//    val opp = Player(oppScore, oppSun, trees.filterNot { it.isMine })
+//    val myShadow = Board.calcPotentialShadowCount(me.trees)
+//    val globalShadow = Board.calcPotentialShadowCount(trees)
+//    val rentability = Board.getRentabilityBoard(me.trees)
+//    val globalRentability = Board.getRentabilityBoard(me.trees)
 
     init {
         trees.forEach { boardTrees[it.cellIndex] = it }
     }
 
-    fun bestAction(player: Player = me): String {
-
-        val harvestableTrees = nutrients
-        val maxTrees = harvestableTrees - trees.count { it.size == GREAT }
-        val maxGreatTrees = min(5, maxTrees)
-
-        val greatTrees = player.trees.filter { it.size == GREAT }
-        val mediumTrees = player.trees.filter { it.size == MEDIUM }
-        val availableMediumTrees = mediumTrees.filterNot { it.isDormant }
-        val availableGreatTrees = greatTrees.filterNot { it.isDormant }
-        val availableLittleTrees = player.trees.filter { it.size == LITTLE }.filterNot { it.isDormant }
-        val availableSeeds = player.trees.filter { it.size == SEED }.filterNot { it.isDormant }
-
-
-        val seedTrees = player.trees.filterNot { it.isDormant || it.size <= LITTLE }
-        val shouldSeed = when {
-            day >= 20 -> false
-            seedTrees.isEmpty() -> false
-            player.costs[SEED_ACTION] > player.sun -> false
-            //player.trees.count() < maxTrees &&
-            player.trees.count { it.size == SEED } < 1 -> true
-            else -> false
-        }
-        if (shouldSeed) {
-
-            val seedActions = seedTrees.map { t ->
-                val targets = Board[t.cellIndex].neighByRange[t.size]
-                targets
-                    .asSequence()
-                    .filter { it.richness > 0 }
-                    .filterNot { treesIndexes.contains(it.index) }
-                    .map { SeedAction(t, it) }
-                    .toList()
-            }.flatten()
-
-            return seedActions.maxWith(
-                compareBy(
-                    { rentability[it.target.index] },
-                    { it.target.richness },
-                    { -globalRentability[it.target.index] },
-                    { -it.source.size },
-                    { -Board[it.source.cellIndex].richness }
-                )
-            )?.toString() ?: "WAIT"
-        }
-
-
-        val shouldComplete = when {
-            availableGreatTrees.isEmpty() -> false
-            player.costs[COMPLETE_ACTION] > player.sun -> false
-            day == 23 -> true
-            greatTrees.size > maxGreatTrees -> true
-            greatTrees.size >= maxGreatTrees && availableMediumTrees.isNotEmpty() &&
-                player.costs[COMPLETE_ACTION] + player.costs[GROW_2_ACTION] <= sun -> true
-            else -> false
-        }
-
-        if (shouldComplete) {
-            val target = availableGreatTrees.minWith(
-                compareBy({ rentability[it.cellIndex] },
-                    { -Board[it.cellIndex].richness })
-            )!!
-            val cost = player.costs[COMPLETE_ACTION]
-            val gain = nutrients + BONUS_RICHNESS[Board[target.cellIndex].richness]
-            if (gain + (sun - cost) / 3 > sun / 3)
-                return CompleteAction(target).toString()
-        }
-
-
-        val shouldGrow2 = when {
-            availableMediumTrees.isEmpty() -> false
-            player.costs[GROW_2_ACTION] > player.sun -> false
-            day >= 22 -> false
-            availableLittleTrees.isNotEmpty() && availableSeeds.isNotEmpty() && mediumTrees.size < 2 &&
-                player.costs[GROW_1_ACTION] + player.costs[GROW_0_ACTION] - 1 <= player.costs[GROW_2_ACTION] && day < 8 -> false
-            else -> true
-        }
-
-        if (shouldGrow2)
-            return GrowAction(availableMediumTrees.firstOrNull()!!).toString()
-
-        if (availableLittleTrees.isNotEmpty() && player.costs[GROW_1_ACTION] <= player.sun && day < 21)
-            return GrowAction(availableLittleTrees.firstOrNull()!!).toString()
-
-        if (availableSeeds.isNotEmpty() && player.costs[GROW_0_ACTION] <= player.sun && day < 20)
-            return GrowAction(availableSeeds.firstOrNull()!!).toString()
-
-        return "WAIT"
-    }
+//    fun bestAction(player: Player = me): String {
+//
+//        val harvestableTrees = nutrients
+//        val maxTrees = harvestableTrees - trees.count { it.size == GREAT }
+//        val maxGreatTrees = min(5, maxTrees)
+//
+//        val greatTrees = player.trees.filter { it.size == GREAT }
+//        val mediumTrees = player.trees.filter { it.size == MEDIUM }
+//        val availableMediumTrees = mediumTrees.filterNot { it.isDormant }
+//        val availableGreatTrees = greatTrees.filterNot { it.isDormant }
+//        val availableLittleTrees = player.trees.filter { it.size == LITTLE }.filterNot { it.isDormant }
+//        val availableSeeds = player.trees.filter { it.size == SEED }.filterNot { it.isDormant }
+//
+//
+//        val seedTrees = player.trees.filterNot { it.isDormant || it.size <= LITTLE }
+//        val shouldSeed = when {
+//            day >= 20 -> false
+//            seedTrees.isEmpty() -> false
+//            player.costs[SEED_ACTION] > player.sun -> false
+//            //player.trees.count() < maxTrees &&
+//            player.trees.count { it.size == SEED } < 1 -> true
+//            else -> false
+//        }
+//        if (shouldSeed) {
+//
+//            val seedActions = seedTrees.map { t ->
+//                val targets = Board[t.cellIndex].neighByRange[t.size]
+//                targets
+//                    .asSequence()
+//                    .filter { it.richness > 0 }
+//                    .filterNot { treesIndexes.contains(it.index) }
+//                    .map { SeedAction(t, it) }
+//                    .toList()
+//            }.flatten()
+//
+//            return seedActions.maxWith(
+//                compareBy(
+//                    { rentability[it.target.index] },
+//                    { it.target.richness },
+//                    { -globalRentability[it.target.index] },
+//                    { -it.source.size },
+//                    { -Board[it.source.cellIndex].richness }
+//                )
+//            )?.toString() ?: "WAIT"
+//        }
+//
+//
+//        val shouldComplete = when {
+//            availableGreatTrees.isEmpty() -> false
+//            player.costs[COMPLETE_ACTION] > player.sun -> false
+//            day == 23 -> true
+//            greatTrees.size > maxGreatTrees -> true
+//            greatTrees.size >= maxGreatTrees && availableMediumTrees.isNotEmpty() &&
+//                player.costs[COMPLETE_ACTION] + player.costs[GROW_2_ACTION] <= sun -> true
+//            else -> false
+//        }
+//
+//        if (shouldComplete) {
+//            val target = availableGreatTrees.minWith(
+//                compareBy({ rentability[it.cellIndex] },
+//                    { -Board[it.cellIndex].richness })
+//            )!!
+//            val cost = player.costs[COMPLETE_ACTION]
+//            val gain = nutrients + BONUS_RICHNESS[Board[target.cellIndex].richness]
+//            if (gain + (sun - cost) / 3 > sun / 3)
+//                return CompleteAction(target).toString()
+//        }
+//
+//
+//        val shouldGrow2 = when {
+//            availableMediumTrees.isEmpty() -> false
+//            player.costs[GROW_2_ACTION] > player.sun -> false
+//            day >= 22 -> false
+//            availableLittleTrees.isNotEmpty() && availableSeeds.isNotEmpty() && mediumTrees.size < 2 &&
+//                player.costs[GROW_1_ACTION] + player.costs[GROW_0_ACTION] - 1 <= player.costs[GROW_2_ACTION] && day < 8 -> false
+//            else -> true
+//        }
+//
+//        if (shouldGrow2)
+//            return GrowAction(availableMediumTrees.firstOrNull()!!).toString()
+//
+//        if (availableLittleTrees.isNotEmpty() && player.costs[GROW_1_ACTION] <= player.sun && day < 21)
+//            return GrowAction(availableLittleTrees.firstOrNull()!!).toString()
+//
+//        if (availableSeeds.isNotEmpty() && player.costs[GROW_0_ACTION] <= player.sun && day < 20)
+//            return GrowAction(availableSeeds.firstOrNull()!!).toString()
+//
+//        return "WAIT"
+//    }
 
 }
 
@@ -193,25 +192,23 @@ fun main(args: Array<String>) {
     val startInit = System.currentTimeMillis()
     Board.init(input)
     log("init board in ${System.currentTimeMillis() - startInit}ms")
-
+    var turn = 0
     var maxTime = 0L
     // game loop
     while (true) {
+        turn++
         val stateInit = System.currentTimeMillis()
         val state = State(input)
-        val shadow = Board.calcShadow(state.trees, state.day % 6)
-        val income = state.trees
-            .filter { it.let { it.isMine && shadow[it.cellIndex] < it.size } }
-            .sumBy { it.size }
         possibleMoves(input)
         log("Read state in ${System.currentTimeMillis() - stateInit}ms")
+
         val start = System.currentTimeMillis()
-        val root = Node(state, income)
-        log("Create state in  ${System.currentTimeMillis() - start}ms")
-        val result = BFS.explore(root, 40)
+
+        val timeout = if (turn ==1 ) 800 else 40
+        val result = BFS.explore(state, timeout)
 
         if (result != null) {
-            log("Find a good Node : score : ${result.nodeScore}, day : ${result.day}, ${result.income}, ${result.sun}, ${result.score}")
+            log("Find a good Node : $result")
             println(result.getFirstAction())
         } else {
             log("No good node found :(")
