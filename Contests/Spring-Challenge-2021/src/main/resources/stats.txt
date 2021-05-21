@@ -7,7 +7,13 @@ Timeout régulier au dela de 30ms.
 BFS Solo Opti
 Nodes explorés en moyenne : 25k-50k en 30ms
 Profondeur de l'arbre : 6-7
-Timeout régulier au dela de 30ms.
+Plus aucune timeout
 
 Total explored Nodes : 1147538
 Average explored Nodes : 17386
+
+
+BFS OPP avec et sans Minimax
+Nodes explorés en moyenne : 25k-50k en 40ms
+Total explored Nodes : 1161866
+Average explored Nodes : 17341

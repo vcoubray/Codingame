@@ -186,7 +186,7 @@ fun possibleMoves(input: Scanner): List<String> {
     return List(numberOfPossibleMoves) { input.nextLine() }
 }
 
-fun main(args: Array<String>) {
+fun main() {
     val input = Scanner(System.`in`)
 
     val startInit = System.currentTimeMillis()
@@ -207,13 +207,17 @@ fun main(args: Array<String>) {
         val timeout = if (turn ==1 ) 800 else 40
         val result = BFS.explore(state, timeout)
 
-        if (result != null) {
-            log("Find a good Node : $result")
-            println(result.getFirstAction())
-        } else {
-            log("No good node found :(")
-            println("WAIT")
-        }
+        println(Minimax.getBestAction(0))
+
+
+//
+//        if (result != null) {
+//            log("Find a good Node : $result")
+//            println(result.getFirstAction())
+//        } else {
+//            log("No good node found :(")
+//            println("WAIT")
+//        }
 
 
         val executionTime = System.currentTimeMillis() - start
