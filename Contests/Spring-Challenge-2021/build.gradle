@@ -9,3 +9,9 @@ repositories {
 dependencies {
     implementation "org.jetbrains.kotlin:kotlin-stdlib"
 }
+
+//jar {
+//    manifest {
+//        attributes 'Main-Class': 'fr.vco.codingame.contest.springchallenge2021.MainKt'
+//    }
+//}
