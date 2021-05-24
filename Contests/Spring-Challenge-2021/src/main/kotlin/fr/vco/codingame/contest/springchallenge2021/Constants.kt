@@ -1,6 +1,13 @@
 package fr.vco.codingame.contest.springchallenge2021
 
 const val INITIAL_NUTRIENTS = 20
+const val MAX_DAY = 24
+
+const val IN_PROGRESS = 0
+const val ME = 1
+const val OPP = 2
+const val DRAW = 3
+
 
 const val SEED_ACTION = 0
 const val GROW_0_ACTION = 1

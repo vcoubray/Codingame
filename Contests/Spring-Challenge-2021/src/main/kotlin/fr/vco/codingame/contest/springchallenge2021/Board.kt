@@ -23,7 +23,7 @@ class Cell(
 }
 
 object Board {
-    private lateinit var cells: List<Cell>
+    lateinit var cells: List<Cell>
 
     operator fun get(index: Int) = cells[index]
 
@@ -37,10 +37,12 @@ object Board {
             )
         }
         repeat(numberOfCells) { initNeigh(it) }
-
+//        cells.forEach{
+//            log("Cell(${it.index},${it.richness},listOf(${it.neighIndex.joinToString(",") })),")
+//        }
     }
 
-    private fun initNeigh(origin: Int) {
+    fun initNeigh(origin: Int) {
         val cell = cells[origin]
         for (dir in 0 until 6) {
             cell.neighByDirection.add(getLine(cell, dir, 3))
@@ -75,18 +77,17 @@ object Board {
 //        return shadow
 //    }
 
+    fun calcShadow(trees: List<Tree>, sunDir: Int): List<Int> {
+        val shadow = MutableList(cells.size) { 0 }
+        trees.forEach { tree ->
+            for (i in 0 until tree.size) {
+                val index = cells[tree.cellIndex].neighByDirection[sunDir].getOrNull(i)?.index ?: -1
+                if (index != -1) shadow[index] = max(shadow[index], tree.size)
+            }
+        }
+        return shadow
+    }
 
-
-
-//    fun calcBitShadow(trees: BitSet, treeSize: Int, sunDir: Int): BitSet {
-//        val shadow = BitSet(BOARD_SIZE)
-//        for (i in 0 until BOARD_SIZE) {
-//            for (j in 0 until treeSize) {
-//                cells[i].neighByDirection[sunDir].getOrNull(j)?.let { shadow[it.index] = true }
-//            }
-//        }
-//        return shadow
-//    }
 
 //    fun calcBitShadow(treeSize: List<BitSet>, sunDir: Int): List<BitSet> {
 //        return treeSize.drop(1).mapIndexed { size, trees ->
@@ -95,16 +96,7 @@ object Board {
 //
 //    }
 
-//    fun calcShadow(trees: List<Tree>, sunDir: Int): List<Int> {
-//        val shadow = MutableList(cells.size) { 0 }
-//        trees.forEach { tree ->
-//            for (i in 0 until tree.size) {
-//                val index = cells[tree.cellIndex].neighByDirection[sunDir].getOrNull(i)?.index ?: -1
-//                if (index != -1) shadow[index] = max(shadow[index], tree.size)
-//            }
-//        }
-//        return shadow
-//    }
+
 
 //    fun calcPotentialShadow(trees: List<Tree>): List<Int> {
 //        val shadow = MutableList(cells.size) { 0 }

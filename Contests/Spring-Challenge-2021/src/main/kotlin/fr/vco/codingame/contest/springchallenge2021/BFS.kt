@@ -1,9 +1,10 @@
 package fr.vco.codingame.contest.springchallenge2021
 
+import fr.vco.codingame.contest.springchallenge2021.mcts.Game
 import kotlin.math.max
 import kotlin.math.min
 
-const val NODES_POOL_SIZE = 40_000
+const val NODES_POOL_SIZE = 0 //40_000
 val NODES_POOL = List(NODES_POOL_SIZE) { Node() }
 
 
@@ -16,7 +17,7 @@ object BFS {
     //var toVisit = LinkedList<Int>()
 
 
-    fun explore(state: State, timeout: Int = 30): Node {
+    fun explore(state: Game, timeout: Int = 30): Node {
         val startBFS = System.currentTimeMillis()
         val end = startBFS + timeout
         explorationCount++
@@ -118,13 +119,14 @@ class Node {
         nodeScore = me.calculateNodeScore(day) - opp.calculateNodeScore(day)
     }
 
-    fun fromState(state: State) {
+    fun fromState(state: Game) {
         parent = null
+        children.clear()
         myTurn = true
         day = state.day
         turn = state.turn
         nutrients = state.nutrients
-        state.boardTrees.forEachIndexed { i, tree ->
+        state.trees.forEachIndexed { i, tree ->
             trees[i].apply {
                 cellIndex = tree?.cellIndex ?: i
                 size = tree?.size ?: -1
@@ -149,6 +151,7 @@ class Node {
     private fun prepareChildren(index: Int) =
         NODES_POOL[index].also {
             it.parent = this
+            it.children.clear()
             it.myTurn = !this.myTurn
             it.day = day
             it.turn = turn + 1
@@ -315,6 +318,8 @@ class Node {
 
 
     fun isFinish() = day == 24
+
+    fun isVictoryMine() = (me.score + me.sun/3) > (opp.score + opp.sun/3)
 
     fun getFirstAction(): String {
         var current = this
