@@ -120,6 +120,7 @@ object Mcts {
     fun uct(node: MctsNode, totalVisit : Double): Double{
         if (node.visit == 0) return 0.0
         return (node.win.toDouble()/node.visit + 1.41 * sqrt(totalVisit/node.visit))
+        //return (node.win.toDouble()/node.visit )
     }
 
 
@@ -138,8 +139,8 @@ object Mcts {
         while (current.getStatus() == IN_PROGRESS) {
 //            log("***************")
 //            log("Day : ${current.day}")
-//            log("Player : ${current.player}, sun : ${current.sun}, score: ${current.score}")
-//            current.trees.filter{it.isMine}.forEach{log("** $it")}
+//            log("Player : ${current.player}, sun : ${current.players[current.player]!!.sun}, score: ${current.players[current.player]!!.score}")
+//            current.trees.filter{it.owner == current.player}.forEach{log("** $it")}
 //            current.actions.forEach{log("**** $it")}
             if (current.actions.isNotEmpty()) {
 

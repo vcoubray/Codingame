@@ -10,7 +10,8 @@ fun log(message: Any?) = System.err.println(message.toString())
 data class Tree(
     val cellIndex: Int,
     var size: Int = NONE,
-    var isMine: Boolean = false,
+    var owner: Int = -1,
+    // var isMine: Boolean = false,
     var isDormant: Boolean= false
 )
 
@@ -66,10 +67,10 @@ class State2(
         oppIsWaiting = input.nextInt() != 0, // whether your opponent is asleep until the next day
         trees = List(input.nextInt()) {
             Tree(
-                input.nextInt(),
-                input.nextInt(),
-                input.nextInt() != 0,
-                input.nextInt() != 0
+                cellIndex = input.nextInt(),
+                size = input.nextInt(),
+                owner = if( input.nextInt() != 0 ) ME else OPP,
+                isDormant = input.nextInt() != 0
             )
         }
     )
@@ -222,7 +223,7 @@ fun main() {
 //        state3.actions.forEach(::log)
 //        state3.costs.forEach(::log)
 
-        val timeout = if (game.turn == 1 ) 800 else 80
+        val timeout = if (game.turn == 1 ) 800 else 90
         val result = Mcts.findNextMove(game, timeout)
 
         println(result)

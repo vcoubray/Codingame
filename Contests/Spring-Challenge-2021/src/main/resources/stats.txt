@@ -17,3 +17,46 @@ BFS OPP avec et sans Minimax
 Nodes explorés en moyenne : 25k-50k en 40ms
 Total explored Nodes : 1161866
 Average explored Nodes : 17341
+
+MCTS solo
+Total simulation : 68206
+Total victory : 30
+
+Total simulation : 11726
+Total victory : 29
+
+Total simulation : 14985
+Total victory : 48
+
+Total simulation : 12611
+Total victory : 29
+
+
+
+Start MCTS : 0
+Execution Time : 50
+Total simulation : 46
+Total victory : 33
+max execution Time : 50
+Start MCTS : 0
+Execution Time : 50
+Total simulation : 2073
+Total victory : 22
+max execution Time : 50
+Start MCTS : 0
+Execution Time : 50
+Total simulation : 1455
+Total victory : 37
+max execution Time : 50
+Start MCTS : 0
+Execution Time : 50
+Total simulation : 17758
+Total victory : 22
+max execution Time : 50
+Start MCTS : 0
+Execution Time : 50
+Total simulation : 15882
+Total victory : 29
+max execution Time : 50
+
+Process finished with exit code 0

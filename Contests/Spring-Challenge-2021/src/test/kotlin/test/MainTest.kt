@@ -52,27 +52,31 @@ fun main() {
     game.day = 1
     game.sun = 2
     game.score = 0
+    game.oppSun = 2
+    game.oppScore = 0
+    game.oppIsWaiting = false
     game.nutrients = 20
     game.trees[23].isDormant = false
-    game.trees[23].isMine = true
+    game.trees[23].owner = ME
     game.trees[23].size = LITTLE
     game.trees[19].isDormant = false
-    game.trees[19].isMine = true
+    game.trees[19].owner = ME
     game.trees[19].size = LITTLE
 
     game.trees[28].isDormant = false
-    game.trees[28].isMine = false
+    game.trees[28].owner = OPP
     game.trees[28].size = LITTLE
     game.trees[32].isDormant = false
-    game.trees[32].isMine = false
+    game.trees[32].owner = OPP
     game.trees[32].size = LITTLE
 
 
     val state = State().initFromGame(game)
     val node = MctsNode(null, state)
-
-    Mcts.findNextMove(game,50)
-    //Mcts.simulateRandomGame(node)
+    repeat(5) {
+        Mcts.findNextMove(game, 50)
+    }
+//    Mcts.simulateRandomGame(node)
 
 
 }

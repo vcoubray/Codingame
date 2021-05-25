@@ -27,18 +27,18 @@ class Game {
         oppSun = input.nextInt() // opponent's sun points
         oppScore = input.nextInt() // opponent's score
         oppIsWaiting = input.nextInt() != 0 // whether your opponent is asleep until the next day
-        trees.forEach{it.size=NONE}
+        trees.forEach { it.size = NONE }
         List(input.nextInt()) {
             Tree(
-                input.nextInt(),
-                input.nextInt(),
-                input.nextInt() != 0,
-                input.nextInt() != 0
+                cellIndex = input.nextInt(),
+                size = input.nextInt(),
+                owner = if (input.nextInt() == 1) ME else OPP,
+                isDormant = input.nextInt() == 1
             )
         }.forEach {
             trees[it.cellIndex].size = it.size
             trees[it.cellIndex].isDormant = it.isDormant
-            trees[it.cellIndex].isMine = it.isMine
+            trees[it.cellIndex].owner = it.owner
         }
 
     }
@@ -48,10 +48,24 @@ class Game {
 }
 
 
-class Player{
-    val score: Int = 0
-    val sun: Int = 0
+class Player {
+    var score: Int = 0
+    var sun: Int = 0
+    var isWaiting: Boolean = false
     val costs: MutableList<Int> = MutableList(5) { 0 }
+
+
+    fun copyFromPlayer(player: Player) {
+        this.score = player.score
+        this.sun = player.sun
+        this.isWaiting = player.isWaiting
+        player.costs.forEachIndexed { i, it -> this.costs[i] = it }
+    }
+
+    fun canPay(actionId: Int) = sun >= costs[actionId]
+
+    fun calcScore() = score + sun / 3
+
 }
 
 class State {
@@ -59,47 +73,74 @@ class State {
     var player: Int = ME
     var day: Int = 0
     var nutrients = 0
-    var score: Int = 0
-    var sun: Int = 0
+
+    //    var score: Int = 0
+//    var sun: Int = 0
     var action: Action? = null
+    val players = listOf(
+        Player(), // Not a real player (just for id 0)
+        Player(), // ME
+        Player() // OPP
+    )
     val trees: List<Tree> = List(BOARD_SIZE) { Tree(it) }
-    val costs: MutableList<Int> = MutableList(5) { 0 }
+
+    //    val costs: MutableList<Int> = MutableList(5) { 0 }
     val actions: List<Action> by lazy(::getAvailableActions)
 
-    fun calcCosts(isMe: Boolean = true) {
-        costs[SEED_ACTION] = trees.count { it.size == 0 && it.isMine == isMe } + SEED_COST
-        costs[GROW_0_ACTION] = trees.count { it.size == 1 && it.isMine == isMe } + GROW_0_COST
-        costs[GROW_1_ACTION] = trees.count { it.size == 2 && it.isMine == isMe } + GROW_1_COST
-        costs[GROW_2_ACTION] = trees.count { it.size == 3 && it.isMine == isMe } + GROW_2_COST
-        costs[COMPLETE_ACTION] = COMPLETE_COST
+    fun calcCosts(player: Int = ME) {
+        players[player].costs[SEED_ACTION] = trees.count { it.size == 0 && it.owner == player } + SEED_COST
+        players[player].costs[GROW_0_ACTION] = trees.count { it.size == 1 && it.owner == player } + GROW_0_COST
+        players[player].costs[GROW_1_ACTION] = trees.count { it.size == 2 && it.owner == player } + GROW_1_COST
+        players[player].costs[GROW_2_ACTION] = trees.count { it.size == 3 && it.owner == player } + GROW_2_COST
+        players[player].costs[COMPLETE_ACTION] = COMPLETE_COST
     }
 
 
     fun initFromGame(game: Game) = apply {
         day = game.day
         nutrients = game.nutrients
-        score = game.score
-        sun = game.sun
+//        score = game.score
+//        sun = game.sun
+        players[ME].sun = game.sun
+        players[ME].score = game.score
+        players[ME].isWaiting = false
+        players[OPP].sun = game.oppSun
+        players[OPP].score = game.oppScore
+        players[OPP].isWaiting = game.oppIsWaiting
+
         game.trees.forEach { tree ->
             trees[tree.cellIndex].size = tree.size
             trees[tree.cellIndex].isDormant = tree.isDormant
-            trees[tree.cellIndex].isMine = tree.isMine
+            trees[tree.cellIndex].owner = tree.owner
         }
-        calcCosts()
+        calcCosts(ME)
+        calcCosts(OPP)
+        player = ME
     }
 
 
     fun getAvailableActions(): List<Action> {
         val actions = mutableListOf<Action>()
-        trees.forEach forEachTree@{ tree ->
-            if (tree.size == NONE) return@forEachTree
-            if (tree.isDormant) return@forEachTree
-            if (!tree.isMine) return@forEachTree
-            if (tree.size == GREAT && day >=12 && sun >= costs[COMPLETE_ACTION]) actions.add(CompleteAction(tree))
-            if (tree.size < GREAT && sun >= costs[GROW_ACTION[tree.size]]) actions.add(GrowAction(tree))
-            if (tree.size > LITTLE && costs[SEED_ACTION] == 0 && sun >= costs[SEED_ACTION]) Board[tree.cellIndex].neighByRange[tree.size].forEach {
-                if(trees[it.index].size == NONE) {
-                    actions.add(SeedAction(tree, it))
+        if (!players[player].isWaiting) {
+            trees.forEach forEachTree@{ tree ->
+                if (tree.size == NONE) return@forEachTree
+                if (tree.isDormant) return@forEachTree
+                if (tree.owner != player) return@forEachTree
+                if (tree.size == GREAT && day >= 12 && players[player].canPay(COMPLETE_ACTION)) {
+                    actions.add(CompleteAction(tree))
+                }
+                if (tree.size < GREAT && players[player].canPay(GROW_ACTION[tree.size])) {
+                    actions.add(GrowAction(tree))
+                }
+                if (tree.size > LITTLE &&
+                    players[player].costs[SEED_ACTION] == 0 &&
+                    players[player].canPay(SEED_ACTION)
+                ) {
+                    Board[tree.cellIndex].neighByRange[tree.size].forEach {
+                        if (trees[it.index].size == NONE) {
+                            actions.add(SeedAction(tree, it))
+                        }
+                    }
                 }
             }
         }
@@ -111,14 +152,15 @@ class State {
         it.player = player
         it.nutrients = nutrients
         it.day = day
-        it.score = score
-        it.sun = sun
+
+        it.players[ME].copyFromPlayer(this.players[ME])
+        it.players[OPP].copyFromPlayer(this.players[OPP])
+
         this.trees.forEachIndexed { i, tree ->
             it.trees[i].isDormant = tree.isDormant
-            it.trees[i].isMine = tree.isMine
+            it.trees[i].owner = tree.owner
             it.trees[i].size = tree.size
         }
-        this.costs.forEachIndexed{i, cost -> it.costs[i] = cost }
     }
 
 
@@ -127,54 +169,76 @@ class State {
             it.action = action
             when (action) {
                 is CompleteAction -> {
-                    it.sun -= costs[COMPLETE_ACTION]
-                    it.costs[COMPLETE_ACTION]--
-                    it.score += nutrients + BONUS_RICHNESS[Board[action.tree.cellIndex].richness]
+                    it.players[player].sun -= players[player].costs[COMPLETE_ACTION]
+                    it.players[player].costs[COMPLETE_ACTION]--
+                    it.players[player].score += nutrients + BONUS_RICHNESS[Board[action.tree.cellIndex].richness]
                     nutrients--
                     it.trees[action.tree.cellIndex].size = NONE
+                    it.trees[action.tree.cellIndex].owner = -1
                     it.trees[action.tree.cellIndex].isDormant = false
 
                 }
                 is GrowAction -> {
-                    it.sun -= costs[GROW_ACTION[action.tree.size]]
-                    it.costs[action.tree.size]--
-                    it.costs[action.tree.size+1]++
+                    it.players[player].sun -= it.players[player].costs[GROW_ACTION[action.tree.size]]
+                    it.players[player].costs[action.tree.size]--
+                    it.players[player].costs[action.tree.size + 1]++
                     it.trees[action.tree.cellIndex].size++
                     it.trees[action.tree.cellIndex].isDormant = true
                 }
                 is SeedAction -> {
-                    it.sun -= costs[SEED_ACTION]
-                    it.costs[SEED_ACTION]++
+                    it.players[player].sun -= it.players[player].costs[SEED_ACTION]
+                    it.players[player].costs[SEED_ACTION]++
                     it.trees[action.target.index].size = SEED
                     it.trees[action.target.index].isDormant = true
-                    it.trees[action.target.index].isMine = true
+                    it.trees[action.target.index].owner = player
                     it.trees[action.source.cellIndex].isDormant = true
                 }
                 is WaitAction -> {
-                    it.day++
-                    if (day < MAX_DAY) {
-                        it.sun += trees.filter { t -> t.isMine && !isShadowed(t,(day+3)%6) }.sumOf { t -> t.size }
-                        it.trees.forEach { t -> t.isDormant = false }
-                    }
+                    it.players[player].isWaiting = true
                 }
             }
-            //it.calcCosts()
+            it.player = 3 - player
+            if (it.players[ME].isWaiting && it.players[OPP].isWaiting) {
+                it.newDay()
+            }
         }
     }
 
-    fun isShadowed(tree: Tree, invertSunDir:Int) : Boolean{
+
+    fun newDay() {
+        day++
+        if (day < MAX_DAY) {
+            val invertSunDir = (day + 3) % 6
+            trees.forEach{
+                if(it.size > 0 && !isShadowed(it, invertSunDir))
+                    players[it.owner].sun += it.size
+            }
+
+//            players[ME].sun += trees.filter { t -> t.owner == ME && !isShadowed(t, invertSunDir) }
+//                .sumOf { t -> t.size }
+//            players[OPP].sun += trees.filter { t -> t.owner == OPP && !isShadowed(t, invertSunDir) }
+//                .sumOf { t -> t.size }
+            players[ME].isWaiting = false
+            players[OPP].isWaiting = false
+
+            trees.forEach { t -> t.isDormant = false }
+            player = ME
+        }
+    }
+
+
+    fun isShadowed(tree: Tree, invertSunDir: Int): Boolean {
         return Board[tree.cellIndex].neighByDirection[invertSunDir].any { trees[it.index].size >= tree.size }
     }
 
     fun getStatus(): Int {
         return when {
             day < MAX_DAY -> IN_PROGRESS
-            score + sun/3 >= 90 -> ME
+           // players[ME].calcScore() > 80 -> ME
+            players[ME].calcScore() > players[OPP].calcScore() -> ME
             else -> OPP
         }
     }
-
-
 
 
 }
