@@ -3,11 +3,11 @@ package fr.vco.codingame.contest.springchallenge2021
 import fr.vco.codingame.contest.springchallenge2021.mcts.Game
 import fr.vco.codingame.contest.springchallenge2021.mcts.Mcts
 //import fr.vco.codingame.contest.springchallenge2021.mcts.PoolState
-import fr.vco.codingame.contest.springchallenge2021.mcts.State
 import java.util.*
 import kotlin.math.max
 
 fun log(message: Any?) = System.err.println(message.toString())
+
 
 data class Tree(
     val cellIndex: Int,
@@ -17,19 +17,23 @@ data class Tree(
     var isDormant: Boolean = false
 )
 
-abstract class Action(val player: Int, var message: String)
+fun List<Tree>.getBits() = this.fold(0L){acc, tree -> acc.addTree(tree.cellIndex)}
 
+sealed class Action(val player: Int, var message: String)
 
-class SeedAction(player: Int, val source: Tree, val target: Cell, message: String = "") : Action(player, message) {
-    override fun toString() = "SEED ${source.cellIndex} ${target.index} $message"
+class SeedAction(player: Int, val source: Int, val target: Int, message: String = "") : Action(player, message) {
+    constructor(player: Int, source: Tree, target: Cell, message: String = "") : this(player, source.cellIndex, target.index, message)
+    override fun toString() = "SEED $source $target $message"
 }
 
-class GrowAction(player: Int, val tree: Tree, message: String = "") : Action(player, message) {
-    override fun toString() = "GROW ${tree.cellIndex} $message"
+class GrowAction(player: Int, val treeId: Int, val size :Int, message: String = "") : Action(player, message) {
+    constructor (player: Int, tree: Tree, message: String = "") : this(player, tree.cellIndex, tree.size, message)
+    override fun toString() = "GROW $treeId $message"
 }
 
-class CompleteAction(player: Int, val tree: Tree, message: String = "") : Action(player, message) {
-    override fun toString() = "COMPLETE ${tree.cellIndex} $message"
+class CompleteAction(player: Int, val treeId: Int, message: String = "") : Action(player, message) {
+    constructor(player:Int, tree: Tree, message: String = "") : this (player,tree.cellIndex,message)
+    override fun toString() = "COMPLETE $treeId $message"
 }
 
 class WaitAction(player: Int, message: String = "") : Action(player, message) {

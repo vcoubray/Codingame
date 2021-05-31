@@ -115,8 +115,6 @@ data class State(
 
     fun getAvailableActions() : List<Action>{
         val actions = mutableListOf<Action>(WaitAction(player))
-        actions.add(WaitAction(player))
-
 
         val nonSeedableCell = if (
             players[player].costs[SEED_ACTION] == 0 &&
@@ -214,28 +212,28 @@ data class State(
     fun complete(action: CompleteAction){
         players[action.player].sun -= players[action.player].costs[COMPLETE_ACTION]
         players[action.player].costs[COMPLETE_ACTION]--
-        players[action.player].score += nutrients + BONUS_RICHNESS[Board[action.tree.cellIndex].richness]
+        players[action.player].score += nutrients + BONUS_RICHNESS[Board[action.treeId].richness]
         nutrients--
-        trees[action.tree.cellIndex].size = NONE
-        trees[action.tree.cellIndex].owner = -1
-        trees[action.tree.cellIndex].isDormant = false
+        trees[action.treeId].size = NONE
+        trees[action.treeId].owner = -1
+        trees[action.treeId].isDormant = false
     }
 
     fun grow(action : GrowAction) {
-        players[action.player].sun -= players[action.player].costs[GROW_ACTION[action.tree.size]]
-        players[action.player].costs[action.tree.size]--
-        players[action.player].costs[action.tree.size + 1]++
-        trees[action.tree.cellIndex].size++
-        trees[action.tree.cellIndex].isDormant = true
+        players[action.player].sun -= players[action.player].costs[GROW_ACTION[action.size]]
+        players[action.player].costs[action.size]--
+        players[action.player].costs[action.size + 1]++
+        trees[action.treeId].size++
+        trees[action.treeId].isDormant = true
     }
 
     fun seed(action: SeedAction) {
         players[action.player].sun -= players[action.player].costs[SEED_ACTION]
         players[action.player].costs[SEED_ACTION]++
-        trees[action.target.index].size = SEED
-        trees[action.target.index].isDormant = true
-        trees[action.target.index].owner = action.player
-        trees[action.source.cellIndex].isDormant = true
+        trees[action.target].size = SEED
+        trees[action.target].isDormant = true
+        trees[action.target].owner = action.player
+        trees[action.source].isDormant = true
     }
 
     fun wait(action: WaitAction){

@@ -9,21 +9,66 @@ fun main() {
 //    PoolState.reset()
     val game = initTestGame()
 
-    val state = State().initFromGame(game)
-    val state2 = state.getNextState(WaitAction(ME))
-    val state3 = state2.getNextState(WaitAction(OPP))
-    val node = MctsNode(null, state3)
+//    val state = State().initFromGame(game)
+//    val state2 = state.getNextState(WaitAction(ME))
+//    val state3 = state2.getNextState(WaitAction(OPP))
+//    val node = MctsNode(null, state3)
+
+
+
+
+
+    var stateBit = StateBits(game).apply(::println)
+    while(stateBit.getStatus() == IN_PROGRESS){
+        val action = stateBit.getAvailableActions().apply(::println).random().apply(::println)
+        stateBit = stateBit.getNextState(action).apply (::println)
+    }
+
+
+
+
+//    val stateBit = StateBits(game)
+//    val startBit = System.currentTimeMillis()
+//    repeat(1000) {
+//        stateBit.getAvailableActions()
+//    }
+//    println("state bits in ${System.currentTimeMillis() - startBit}ms")
+//
+//    val state = State().initFromGame(game)
+//    val start = System.currentTimeMillis()
+//    repeat(1000){
+//        state.getAvailableActions()
+//    }
+//    println("state in ${System.currentTimeMillis() - start}ms")
+//
+//    val startBit2 = System.currentTimeMillis()
+//    repeat(1000) {
+//        stateBit.getAvailableActions()
+//    }
+//    println("state bits in ${System.currentTimeMillis() - startBit2}ms")
+//
+//
+//
+//    val start2 = System.currentTimeMillis()
+//    repeat(1000){
+//        state.getAvailableActions()
+//    }
+//    println("state in ${System.currentTimeMillis() - start2}ms")
+
+
+    println("------")
+
 
 
 //    val simulation = node.state.copyCustom()
 
 //    simulation.simulateRandomGame()
 
-    repeat(10) {
-        Mcts.findNextMove(state3, 80)
-        println("----")
-    }
-    println("Max Execution Time : ${Mcts.maxExecutionTime}ms")
+//    repeat(10) {
+//        Mcts.findNextMove(state3, 80)
+//        println("----")
+//    }
+//    println("Max Execution Time : ${Mcts.maxExecutionTime}ms")
 //    Mcts.simulateRandomGame(node)
 
 }
@@ -70,6 +115,12 @@ fun initTestGame(): Game {
     )
     repeat(BOARD_SIZE) { Board.initNeigh(it) }
 
+    val trees = listOf(
+        Tree(23, LITTLE, ME, false),
+        Tree(19, LITTLE, ME, false),
+        Tree(28, LITTLE, OPP, false),
+        Tree(32, LITTLE, OPP, false),
+    )
 
     return Game().apply {
         day = 1
@@ -79,26 +130,13 @@ fun initTestGame(): Game {
         oppScore = 0
         oppIsWaiting = false
         nutrients = 20
-        trees[23].apply {
-            isDormant = false
-            owner = ME
-            size = LITTLE
-        }
-        trees[19].apply {
-            isDormant = false
-            owner = ME
-            size = LITTLE
-        }
-
-        trees[28].apply {
-            isDormant = false
-            owner = OPP
-            size = LITTLE
-        }
-        trees[32].apply {
-            isDormant = false
-            owner = OPP
-            size = LITTLE
+        realTrees = trees
+        trees.forEach{
+            this.trees[it.cellIndex].apply {
+                isDormant = it.isDormant
+                owner = it.owner
+                size = it.size
+            }
         }
     }
 
