@@ -10,7 +10,8 @@ class Cell(
     val richness: Int,
     val neighIndex: List<Int>,
     val neighByDirection: MutableList<List<Cell>> = mutableListOf(),
-    var neighByRange: List<List<Cell>> = emptyList()
+    var neighByRange: List<List<Cell>> = emptyList(),
+    var seedableNeighByRange: MutableList<List<Cell>> = mutableListOf()
 ) {
     override fun toString(): String {
         val sb = StringBuffer("Cell [index = $index; richness = $richness;]\n")
@@ -19,6 +20,16 @@ class Cell(
         }
         return sb.toString()
     }
+
+    override fun equals(other: Any?): Boolean {
+        return if(other is Cell?) other?.index == index
+        else false
+    }
+
+    override fun hashCode(): Int {
+        return index
+    }
+
 
 }
 
@@ -37,9 +48,6 @@ object Board {
             )
         }
         repeat(numberOfCells) { initNeigh(it) }
-//        cells.forEach{
-//            log("Cell(${it.index},${it.richness},listOf(${it.neighIndex.joinToString(",") })),")
-//        }
     }
 
     fun initNeigh(origin: Int) {
@@ -48,6 +56,12 @@ object Board {
             cell.neighByDirection.add(getLine(cell, dir, 3))
             cell.neighByRange = getRangedNeighbors(cell, 3)
         }
+        cell.seedableNeighByRange = mutableListOf(
+            emptyList(),
+            emptyList(),
+            cell.neighByRange[2] - cell.neighByDirection.mapNotNull { it.getOrNull(1) },
+            cell.neighByRange[3] - cell.neighByDirection.map{it.drop(1)}.flatten()
+        )
     }
 
 
@@ -89,12 +103,6 @@ object Board {
     }
 
 
-//    fun calcBitShadow(treeSize: List<BitSet>, sunDir: Int): List<BitSet> {
-//        return treeSize.drop(1).mapIndexed { size, trees ->
-//            calcBitShadow(trees, size, sunDir)
-//        }
-//
-//    }
 
 
 

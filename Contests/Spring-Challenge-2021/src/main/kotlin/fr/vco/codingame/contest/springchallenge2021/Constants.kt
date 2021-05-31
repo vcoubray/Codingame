@@ -3,10 +3,11 @@ package fr.vco.codingame.contest.springchallenge2021
 const val INITIAL_NUTRIENTS = 20
 const val MAX_DAY = 24
 
-const val IN_PROGRESS = 0
-const val ME = 1
-const val OPP = 2
-const val DRAW = 3
+
+const val ME = 0
+const val OPP = 1
+const val DRAW = 2
+const val IN_PROGRESS = 3
 
 
 const val SEED_ACTION = 0
@@ -22,6 +23,8 @@ const val GROW_0_COST = 1
 const val GROW_1_COST = 3
 const val GROW_2_COST = 7
 const val COMPLETE_COST = 4
+
+val BASE_COST = listOf(SEED_COST,GROW_0_COST, GROW_1_COST, GROW_2_COST, COMPLETE_COST)
 
 const val NONE = -1
 const val SEED = 0

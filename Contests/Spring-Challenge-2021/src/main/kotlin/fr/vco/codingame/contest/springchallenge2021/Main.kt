@@ -1,6 +1,8 @@
 package fr.vco.codingame.contest.springchallenge2021
 
 import fr.vco.codingame.contest.springchallenge2021.mcts.Game
+import fr.vco.codingame.contest.springchallenge2021.mcts.Mcts
+//import fr.vco.codingame.contest.springchallenge2021.mcts.PoolState
 import fr.vco.codingame.contest.springchallenge2021.mcts.State
 import java.util.*
 import kotlin.math.max
@@ -12,39 +14,29 @@ data class Tree(
     var size: Int = NONE,
     var owner: Int = -1,
     // var isMine: Boolean = false,
-    var isDormant: Boolean= false
+    var isDormant: Boolean = false
 )
 
-interface Action
+abstract class Action(val player: Int, var message: String)
 
-class SeedAction(val source: Tree, val target: Cell, private val message: String = "") : Action {
+
+class SeedAction(player: Int, val source: Tree, val target: Cell, message: String = "") : Action(player, message) {
     override fun toString() = "SEED ${source.cellIndex} ${target.index} $message"
 }
 
-class GrowAction(val tree: Tree, private val message: String = "") : Action {
+class GrowAction(player: Int, val tree: Tree, message: String = "") : Action(player, message) {
     override fun toString() = "GROW ${tree.cellIndex} $message"
 }
 
-class CompleteAction(val tree: Tree, private val message: String = "") : Action {
+class CompleteAction(player: Int, val tree: Tree, message: String = "") : Action(player, message) {
     override fun toString() = "COMPLETE ${tree.cellIndex} $message"
 }
-class WaitAction( private val message: String = "") :Action{
+
+class WaitAction(player: Int, message: String = "") : Action(player, message) {
     override fun toString() = "WAIT $message"
 }
 
-//class Player(
-//    val score: Int,
-//    val sun: Int,
-//    val trees: List<Tree>
-//) {
-//    val costs = listOf(
-//        trees.count { it.size == 0 } + SEED_COST,
-//        trees.count { it.size == 1 } + GROW_0_COST,
-//        trees.count { it.size == 2 } + GROW_1_COST,
-//        trees.count { it.size == 3 } + GROW_2_COST,
-//        COMPLETE_COST
-//    )
-//}
+
 
 
 class State2(
@@ -69,7 +61,7 @@ class State2(
             Tree(
                 cellIndex = input.nextInt(),
                 size = input.nextInt(),
-                owner = if( input.nextInt() != 0 ) ME else OPP,
+                owner = if (input.nextInt() != 0) ME else OPP,
                 isDormant = input.nextInt() != 0
             )
         }
@@ -193,16 +185,39 @@ fun possibleMoves(input: Scanner): List<String> {
 }
 
 
+//val POOL = List(PoolState.MAX_SIZE) { State() }
+////
+//
+//object PoolState {
+//    const val MAX_SIZE = 50_000
+//
+//
+//    var index = 0
+//
+//    //fun nextIndex() = index++
+//    operator fun get(i: Int) = POOL[i]
+//    fun getNextState() = POOL[index++]
+//    fun reset() {
+//        index = 0
+//    }
+//}
+
+
+
 
 fun main() {
     val input = Scanner(System.`in`)
+
+
+
 
     val startInit = System.currentTimeMillis()
     Board.init(input)
     log("init board in ${System.currentTimeMillis() - startInit}ms")
 
-    var turn = 0
     var maxTime = 0L
+
+//    PoolState.reset()
 
     val game = Game()
 
@@ -214,7 +229,7 @@ fun main() {
 
         log("Read state in ${game.currentExecutionTime()}ms")
 
-        val state = State().initFromGame(game)
+//        val state = State().initFromGame(game)
 //        state.actions.forEach(::log)
 //        state.costs.forEach(::log)
 //
@@ -223,75 +238,14 @@ fun main() {
 //        state3.actions.forEach(::log)
 //        state3.costs.forEach(::log)
 
-        val timeout = if (game.turn == 1 ) 800 else 90
+        val timeout = if (game.turn == 1) 800 else 70
         val result = Mcts.findNextMove(game, timeout)
 
         println(result)
 
-       // println("WAIT")
         val executionTime = game.currentExecutionTime()
         maxTime = max(executionTime, maxTime)
         log("End turn in ${executionTime}ms ")
         log("Max Execution in ${maxTime}ms ")
     }
 }
-
-
-// BFS / MINIMAX
-//fun main() {
-//    val input = Scanner(System.`in`)
-//
-//    val startInit = System.currentTimeMillis()
-//    Board.init(input)
-//    log("init board in ${System.currentTimeMillis() - startInit}ms")
-//    var turn = 0
-//    var maxTime = 0L
-//    // game loop
-//    while (true) {
-//        turn++
-//        val stateInit = System.currentTimeMillis()
-//        val state = State(input)
-//        possibleMoves(input)
-//        log("Read state in ${System.currentTimeMillis() - stateInit}ms")
-//
-//        val start = System.currentTimeMillis()
-//
-//        val timeout = if (turn ==1 ) 800 else 40
-//        val result = BFS.explore(state, timeout)
-//
-//        println(Minimax.getBestAction(0))
-//
-//        val executionTime = System.currentTimeMillis() - start
-//        maxTime = max(executionTime, maxTime)
-//        log("End turn in ${executionTime}ms ")
-//        log("Max Execution in ${maxTime}ms ")
-//    }
-//}
-
-
-
-
-// HEURISTIQUE
-//fun main(args: Array<String>) {
-//    val input = Scanner(System.`in`)
-//
-//    val startInit = System.currentTimeMillis()
-//    Board.init(input)
-//    log("init board in ${System.currentTimeMillis() - startInit}ms")
-//
-//    var maxTime = 0L
-//    // game loop
-//    while (true) {
-//        val stateInit = System.currentTimeMillis()
-//        val state = State(input)
-//        possibleMoves(input)
-//        log("Read state in ${System.currentTimeMillis() - stateInit}ms")
-//        val start = System.currentTimeMillis()
-//        println(state.bestAction())
-//        val executionTime = System.currentTimeMillis() - start
-//        maxTime = max(executionTime, maxTime)
-//        log("End turn in ${executionTime}ms ")
-//
-//        log("Max Execution in ${maxTime}ms ")
-//    }
-//}
