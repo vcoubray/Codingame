@@ -11,14 +11,14 @@ fun simuAction(state: StateBits, loop: Int = 1) {
     measureTimeMillis {
         repeat(loop) {
             state.getAvailableActions()
-            }
+        }
     }.let { println("Bits Action - $loop iteration - elapsed time : $it ms") }
 }
 
 fun simuAction(state: State, loop: Int = 1) {
     measureTimeMillis {
         repeat(loop) {
-           state.getAvailableActions()
+            state.getAvailableActions()
         }
     }.let { println("Normal Action - $loop iteration - elapsed time : $it ms") }
 }
@@ -30,7 +30,7 @@ fun simu(state: StateBits, loop: Int = 1) {
             var state = state
             while (state.getStatus() == IN_PROGRESS) {
                 val action = state.getAvailableActions().random()
-//            val action = WaitAction(ME)
+//            val action = WaitAction(state.player)
                 state = state.getNextState(action)
             }
         }
@@ -64,25 +64,25 @@ fun main() {
 //    val node = MctsNode(null, state3)
 
 
-//    measureTimeMillis {
-//        var stateBit = StateBits(game).apply (::log)
-//        while(stateBit.getStatus() == IN_PROGRESS){
-//            val action = stateBit.getAvailableActions().apply(::log).random().apply (::log)
-//            stateBit = stateBit.getNextState(action).apply (::log)
-//        }
-//    }.let{println("Bits - elapsed time : $it ms")}
+    measureTimeMillis {
+        var stateBit = StateBits(game).apply(::log)
+        while (stateBit.getStatus() == IN_PROGRESS) {
+            val action = stateBit.getAvailableActions().apply(::log).random().apply(::log)
+            stateBit = stateBit.getNextState(action).apply(::log)
+        }
+    }.let { println("Bits - elapsed time : $it ms") }
 
 
     val stateBits = StateBits(game)
     val state = State().initFromGame(game)
-    simuAction(stateBits,1000)
-    simuAction(stateBits,1000)
-    simuAction(stateBits,1000)
-    simuAction(stateBits,1000)
-    simuAction(state,1000)
-    simuAction(state,1000)
-    simuAction(state,1000)
-    simuAction(state,1000)
+    simuAction(stateBits, 1000)
+    simuAction(stateBits, 1000)
+    simuAction(stateBits, 1000)
+    simuAction(stateBits, 1000)
+    simuAction(state, 1000)
+    simuAction(state, 1000)
+    simuAction(state, 1000)
+    simuAction(state, 1000)
 
     simu(stateBits, 1000)
     simu(stateBits, 1000)
@@ -164,12 +164,12 @@ fun initTestGame(): Game {
     val trees = listOf(
         Tree(16, MEDIUM, ME, false),
         Tree(17, LITTLE, ME, false),
-        Tree(18, MEDIUM, ME, false),
-        Tree(21, GREAT, ME, false),
-        Tree(35, MEDIUM, ME, false),
-        Tree(19, LITTLE, ME, false),
-        Tree(23, LITTLE, ME, false),
-        Tree(19, LITTLE, ME, false),
+//        Tree(18, MEDIUM, ME, false),
+//        Tree(21, GREAT, ME, false),
+//        Tree(35, MEDIUM, ME, false),
+//        Tree(19, LITTLE, ME, false),
+//        Tree(23, LITTLE, ME, false),
+//        Tree(19, LITTLE, ME, false),
         Tree(28, LITTLE, OPP, false),
         Tree(32, LITTLE, OPP, false),
 
@@ -177,11 +177,11 @@ fun initTestGame(): Game {
 
     return Game().apply {
         day = 1
-        sun = 15
+        sun = 0
         score = 0
-        oppSun = 15
+        oppSun = 0
         oppScore = 0
-        oppIsWaiting = true
+        oppIsWaiting = false
         nutrients = 20
         realTrees = trees
         trees.forEach {

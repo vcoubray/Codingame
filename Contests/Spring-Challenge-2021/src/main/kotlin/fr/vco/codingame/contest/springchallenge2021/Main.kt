@@ -16,34 +16,39 @@ data class Tree(
     var isDormant: Boolean = false
 )
 
-fun List<Tree>.getBits() = this.fold(0L){acc, tree -> acc.addTree(tree.cellIndex)}
+fun List<Tree>.getBits() = this.fold(0L) { acc, tree -> acc.addTree(tree.cellIndex) }
 
-sealed class Action(val player: Int, val cost:Int) {
+sealed class Action(val player: Int, val cost: Int) {
     fun print(message: String = "") = "$this $message"
 }
 
 
+class SeedAction(player: Int, val source: Int, val target: Int, cost: Int) : Action(player, cost) {
+    constructor(player: Int, source: Tree, target: Cell, cost: Int = 0) : this(
+        player,
+        source.cellIndex,
+        target.index,
+        cost
+    )
 
-class SeedAction(player: Int, val source: Int, val target: Int) : Action(player,0) {
-    constructor(player: Int, source: Tree, target: Cell) : this(player, source.cellIndex, target.index)
     override fun toString() = "SEED $source $target"
 }
 
-class GrowAction(player: Int, val treeId: Int, val size :Int) : Action(player,0) {
-    constructor (player: Int, tree: Tree) : this(player, tree.cellIndex, tree.size)
+class GrowAction(player: Int, val treeId: Int, val size: Int, cost: Int) : Action(player, cost) {
+    constructor (player: Int, tree: Tree, cost: Int = 0) : this(player, tree.cellIndex, tree.size, cost)
+
     override fun toString() = "GROW $treeId"
 }
 
 class CompleteAction(player: Int, val treeId: Int) : Action(player, COMPLETE_COST) {
-    constructor(player:Int, tree: Tree) : this (player,tree.cellIndex)
+    constructor(player: Int, tree: Tree) : this(player, tree.cellIndex)
+
     override fun toString() = "COMPLETE $treeId"
 }
 
-class WaitAction(player: Int) : Action(player,0) {
+class WaitAction(player: Int) : Action(player, 0) {
     override fun toString() = "WAIT"
 }
-
-
 
 
 //class State2(
@@ -210,12 +215,8 @@ fun possibleMoves(input: Scanner): List<String> {
 //}
 
 
-
-
 fun main() {
     val input = Scanner(System.`in`)
-
-
 
 
     val startInit = System.currentTimeMillis()
