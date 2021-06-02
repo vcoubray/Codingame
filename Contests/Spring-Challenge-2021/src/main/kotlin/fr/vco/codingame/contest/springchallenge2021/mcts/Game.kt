@@ -17,9 +17,10 @@ class Game {
 
     var turn = 0
 
+
     private var startTime = System.currentTimeMillis()
 
-    lateinit var realTrees : List<Tree>
+    lateinit var realTrees: List<Tree>
 
     fun readInput(input: Scanner) {
         day = input.nextInt() // the game lasts 24 days: 0-23

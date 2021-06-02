@@ -13,66 +13,69 @@ data class Tree(
     val cellIndex: Int,
     var size: Int = NONE,
     var owner: Int = -1,
-    // var isMine: Boolean = false,
     var isDormant: Boolean = false
 )
 
 fun List<Tree>.getBits() = this.fold(0L){acc, tree -> acc.addTree(tree.cellIndex)}
 
-sealed class Action(val player: Int, var message: String)
-
-class SeedAction(player: Int, val source: Int, val target: Int, message: String = "") : Action(player, message) {
-    constructor(player: Int, source: Tree, target: Cell, message: String = "") : this(player, source.cellIndex, target.index, message)
-    override fun toString() = "SEED $source $target $message"
-}
-
-class GrowAction(player: Int, val treeId: Int, val size :Int, message: String = "") : Action(player, message) {
-    constructor (player: Int, tree: Tree, message: String = "") : this(player, tree.cellIndex, tree.size, message)
-    override fun toString() = "GROW $treeId $message"
-}
-
-class CompleteAction(player: Int, val treeId: Int, message: String = "") : Action(player, message) {
-    constructor(player:Int, tree: Tree, message: String = "") : this (player,tree.cellIndex,message)
-    override fun toString() = "COMPLETE $treeId $message"
-}
-
-class WaitAction(player: Int, message: String = "") : Action(player, message) {
-    override fun toString() = "WAIT $message"
+sealed class Action(val player: Int, val cost:Int) {
+    fun print(message: String = "") = "$this $message"
 }
 
 
 
+class SeedAction(player: Int, val source: Int, val target: Int) : Action(player,0) {
+    constructor(player: Int, source: Tree, target: Cell) : this(player, source.cellIndex, target.index)
+    override fun toString() = "SEED $source $target"
+}
 
-class State2(
-    val day: Int,
-    val nutrients: Int,
-    val sun: Int,
-    val score: Int,
-    val oppSun: Int,
-    val oppScore: Int,
-    val oppIsWaiting: Boolean,
-    val trees: List<Tree>
-) {
-    constructor(input: Scanner) : this(
-        day = input.nextInt(), // the game lasts 24 days: 0-23
-        nutrients = input.nextInt(), // the base score you gain from the next COMPLETE action
-        sun = input.nextInt(), // your sun points
-        score = input.nextInt(), // your current score
-        oppSun = input.nextInt(), // opponent's sun points
-        oppScore = input.nextInt(), // opponent's score
-        oppIsWaiting = input.nextInt() != 0, // whether your opponent is asleep until the next day
-        trees = List(input.nextInt()) {
-            Tree(
-                cellIndex = input.nextInt(),
-                size = input.nextInt(),
-                owner = if (input.nextInt() != 0) ME else OPP,
-                isDormant = input.nextInt() != 0
-            )
-        }
-    )
+class GrowAction(player: Int, val treeId: Int, val size :Int) : Action(player,0) {
+    constructor (player: Int, tree: Tree) : this(player, tree.cellIndex, tree.size)
+    override fun toString() = "GROW $treeId"
+}
 
-    var turn = 0
-    val boardTrees = MutableList<Tree?>(37) { null }
+class CompleteAction(player: Int, val treeId: Int) : Action(player, COMPLETE_COST) {
+    constructor(player:Int, tree: Tree) : this (player,tree.cellIndex)
+    override fun toString() = "COMPLETE $treeId"
+}
+
+class WaitAction(player: Int) : Action(player,0) {
+    override fun toString() = "WAIT"
+}
+
+
+
+
+//class State2(
+//    val day: Int,
+//    val nutrients: Int,
+//    val sun: Int,
+//    val score: Int,
+//    val oppSun: Int,
+//    val oppScore: Int,
+//    val oppIsWaiting: Boolean,
+//    val trees: List<Tree>
+//) {
+//    constructor(input: Scanner) : this(
+//        day = input.nextInt(), // the game lasts 24 days: 0-23
+//        nutrients = input.nextInt(), // the base score you gain from the next COMPLETE action
+//        sun = input.nextInt(), // your sun points
+//        score = input.nextInt(), // your current score
+//        oppSun = input.nextInt(), // opponent's sun points
+//        oppScore = input.nextInt(), // opponent's score
+//        oppIsWaiting = input.nextInt() != 0, // whether your opponent is asleep until the next day
+//        trees = List(input.nextInt()) {
+//            Tree(
+//                cellIndex = input.nextInt(),
+//                size = input.nextInt(),
+//                owner = if (input.nextInt() != 0) ME else OPP,
+//                isDormant = input.nextInt() != 0
+//            )
+//        }
+//    )
+//
+//    var turn = 0
+//    val boardTrees = MutableList<Tree?>(37) { null }
 
 
 //    val sunDir = day % 6
@@ -84,9 +87,9 @@ class State2(
 //    val rentability = Board.getRentabilityBoard(me.trees)
 //    val globalRentability = Board.getRentabilityBoard(me.trees)
 
-    init {
-        trees.forEach { boardTrees[it.cellIndex] = it }
-    }
+//    init {
+//        trees.forEach { boardTrees[it.cellIndex] = it }
+//    }
 
 //    fun bestAction(player: Player = me): String {
 //
@@ -178,7 +181,7 @@ class State2(
 //        return "WAIT"
 //    }
 
-}
+//}
 
 fun possibleMoves(input: Scanner): List<String> {
     val numberOfPossibleMoves = input.nextInt()

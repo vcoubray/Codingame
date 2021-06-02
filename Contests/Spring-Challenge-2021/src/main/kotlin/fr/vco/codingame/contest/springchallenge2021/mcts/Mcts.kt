@@ -96,9 +96,8 @@ object Mcts {
 //            current = current.children.maxByOrNull { it.win.toDouble() / it.visit }
 //        }
         val bestNode = rootNode.children.maxByOrNull { it.visit }
-        return bestNode?.action?.apply {
-            message = "Playout: ${rootNode.visit} in : ${System.currentTimeMillis() - start}ms"
-        } ?: WaitAction(ME)
+        return bestNode?.action
+         ?: WaitAction(ME)
 
     }
 

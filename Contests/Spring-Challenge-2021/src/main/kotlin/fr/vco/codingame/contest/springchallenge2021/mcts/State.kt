@@ -46,6 +46,10 @@ data class State(
     )
 ) {
 
+    companion object {
+        val INVERT_SUN_DIR = List(MAX_DAY) { (it + 3) % 6 }.toTypedArray()
+    }
+
 //    val players = listOf(
 //        //Player(), // Not a real player (just for id 0)
 //        Player(), // ME
@@ -136,7 +140,7 @@ data class State(
                 ) {
                     actions.add(CompleteAction(player, tree))
                 }
-                if (tree.size < GREAT && players[player].canPay(GROW_ACTION[tree.size])) {
+                else if (tree.size < GREAT && players[player].canPay(GROW_ACTION[tree.size])) {
                     actions.add(GrowAction(player, tree))
                 }
                 if (tree.size > LITTLE &&
@@ -243,7 +247,7 @@ data class State(
     fun newDay() {
         day++
         if (day < MAX_DAY) {
-            val invertSunDir = (day + 3) % 6
+            val invertSunDir =  StateBits.INVERT_SUN_DIR[day]
             trees.forEach {
                 if (it.size > 0 && !isShadowed(it, invertSunDir))
                     players[it.owner].sun += it.size

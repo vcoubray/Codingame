@@ -2,7 +2,56 @@ package test
 
 import fr.vco.codingame.contest.springchallenge2021.*
 import fr.vco.codingame.contest.springchallenge2021.mcts.*
+import kotlin.system.measureTimeMillis
+
 //import fr.vco.codingame.contest.springchallenge2021.mcts.PoolState
+
+
+fun simuAction(state: StateBits, loop: Int = 1) {
+    measureTimeMillis {
+        repeat(loop) {
+            state.getAvailableActions()
+            }
+    }.let { println("Bits Action - $loop iteration - elapsed time : $it ms") }
+}
+
+fun simuAction(state: State, loop: Int = 1) {
+    measureTimeMillis {
+        repeat(loop) {
+           state.getAvailableActions()
+        }
+    }.let { println("Normal Action - $loop iteration - elapsed time : $it ms") }
+}
+
+
+fun simu(state: StateBits, loop: Int = 1) {
+    measureTimeMillis {
+        repeat(loop) {
+            var state = state
+            while (state.getStatus() == IN_PROGRESS) {
+                val action = state.getAvailableActions().random()
+//            val action = WaitAction(ME)
+                state = state.getNextState(action)
+            }
+        }
+    }.let { println("Bits - $loop ineration - elapsed time : $it ms") }
+
+}
+
+fun simu(state: State, loop: Int = 1) {
+    measureTimeMillis {
+        repeat(loop) {
+            var state = state
+            while (state.getStatus() == IN_PROGRESS) {
+                val action = state.getAvailableActions().random()
+//            val action = WaitAction(ME)
+                state = state.getNextState(action)
+            }
+        }
+    }.let { println("Normal - $loop ineration - elapsed time : $it ms") }
+
+
+}
 
 
 fun main() {
@@ -15,49 +64,46 @@ fun main() {
 //    val node = MctsNode(null, state3)
 
 
+//    measureTimeMillis {
+//        var stateBit = StateBits(game).apply (::log)
+//        while(stateBit.getStatus() == IN_PROGRESS){
+//            val action = stateBit.getAvailableActions().apply(::log).random().apply (::log)
+//            stateBit = stateBit.getNextState(action).apply (::log)
+//        }
+//    }.let{println("Bits - elapsed time : $it ms")}
 
 
+    val stateBits = StateBits(game)
+    val state = State().initFromGame(game)
+    simuAction(stateBits,1000)
+    simuAction(stateBits,1000)
+    simuAction(stateBits,1000)
+    simuAction(stateBits,1000)
+    simuAction(state,1000)
+    simuAction(state,1000)
+    simuAction(state,1000)
+    simuAction(state,1000)
 
-    var stateBit = StateBits(game).apply(::println)
-    while(stateBit.getStatus() == IN_PROGRESS){
-        val action = stateBit.getAvailableActions().apply(::println).random().apply(::println)
-        stateBit = stateBit.getNextState(action).apply (::println)
-    }
+    simu(stateBits, 1000)
+    simu(stateBits, 1000)
+    simu(stateBits, 1000)
+    simu(stateBits, 1000)
+    simu(stateBits, 1000)
+    simu(stateBits, 1000)
+    simu(stateBits, 1000)
+    simu(stateBits, 1000)
+    simu(state, 1000)
+    simu(state, 1000)
+    simu(state, 1000)
+    simu(state, 1000)
+    simu(state, 1000)
+    simu(state, 1000)
+    simu(state, 1000)
+    simu(state, 1000)
 
-
-
-
-//    val stateBit = StateBits(game)
-//    val startBit = System.currentTimeMillis()
-//    repeat(1000) {
-//        stateBit.getAvailableActions()
-//    }
-//    println("state bits in ${System.currentTimeMillis() - startBit}ms")
-//
-//    val state = State().initFromGame(game)
-//    val start = System.currentTimeMillis()
-//    repeat(1000){
-//        state.getAvailableActions()
-//    }
-//    println("state in ${System.currentTimeMillis() - start}ms")
-//
-//    val startBit2 = System.currentTimeMillis()
-//    repeat(1000) {
-//        stateBit.getAvailableActions()
-//    }
-//    println("state bits in ${System.currentTimeMillis() - startBit2}ms")
-//
-//
-//
-//    val start2 = System.currentTimeMillis()
-//    repeat(1000){
-//        state.getAvailableActions()
-//    }
-//    println("state in ${System.currentTimeMillis() - start2}ms")
 
 
     println("------")
-
 
 
 //    val simulation = node.state.copyCustom()
@@ -116,22 +162,29 @@ fun initTestGame(): Game {
     repeat(BOARD_SIZE) { Board.initNeigh(it) }
 
     val trees = listOf(
+        Tree(16, MEDIUM, ME, false),
+        Tree(17, LITTLE, ME, false),
+        Tree(18, MEDIUM, ME, false),
+        Tree(21, GREAT, ME, false),
+        Tree(35, MEDIUM, ME, false),
+        Tree(19, LITTLE, ME, false),
         Tree(23, LITTLE, ME, false),
         Tree(19, LITTLE, ME, false),
         Tree(28, LITTLE, OPP, false),
         Tree(32, LITTLE, OPP, false),
-    )
+
+        )
 
     return Game().apply {
         day = 1
-        sun = 2
+        sun = 15
         score = 0
-        oppSun = 2
+        oppSun = 15
         oppScore = 0
-        oppIsWaiting = false
+        oppIsWaiting = true
         nutrients = 20
         realTrees = trees
-        trees.forEach{
+        trees.forEach {
             this.trees[it.cellIndex].apply {
                 isDormant = it.isDormant
                 owner = it.owner
