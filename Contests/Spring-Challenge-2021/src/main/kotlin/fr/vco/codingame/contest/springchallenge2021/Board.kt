@@ -34,13 +34,13 @@ class Cell(
 }
 
 object Board {
-    lateinit var cells: List<Cell>
+    lateinit var cells: Array<Cell>
 
     operator fun get(index: Int) = cells[index]
 
     fun init(input: Scanner) {
         val numberOfCells = input.nextInt()
-        cells = List(numberOfCells) {
+        cells = Array(numberOfCells) {
             Cell(
                 input.nextInt(),
                 input.nextInt(),

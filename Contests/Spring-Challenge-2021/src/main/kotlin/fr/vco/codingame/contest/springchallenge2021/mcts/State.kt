@@ -7,7 +7,7 @@ data class Player(
     var score: Int = 0,
     var sun: Int = 0,
     var isWaiting: Boolean = false,
-    val costs: MutableList<Int> = MutableList(5) { 0 },
+    val costs: Array<Int>  = Array(5) { 0 },
 //    var firstAction: Boolean = true
 ) {
 //    var score: Int = 0
@@ -24,7 +24,7 @@ data class Player(
         player.costs.forEachIndexed { i, it -> this.costs[i] = it }
     }
 
-    fun canPay(actionId: Int) = sun >= (costs[actionId] + BASE_COST[actionId])
+    fun canPay(actionId: Int) = sun >= (costs[actionId])
 
     fun calcScore() = score + sun / 3
 
@@ -39,8 +39,8 @@ data class State(
     var player: Int = ME,
     var day: Int = 0,
     var nutrients: Int  = 0,
-    val trees: List<Tree> = List(BOARD_SIZE) { Tree(it) },
-    val players: List<Player> = listOf(
+    val trees: Array<Tree> = Array(BOARD_SIZE) { Tree(it) },
+    val players: Array<Player> = arrayOf(
         Player(), // ME
         Player() // OPP
     )
@@ -121,8 +121,7 @@ data class State(
         val actions = mutableListOf<Action>(WaitAction(player))
 
         val nonSeedableCell = if (
-            players[player].costs[SEED_ACTION] == 0 &&
-            players[player].canPay(SEED_ACTION)
+            players[player].costs[SEED_ACTION] == 0
         ) {
             trees.filter{it.owner==ME}.flatMap { Board[it.cellIndex].neighIndex}
         } else emptyList()
@@ -160,10 +159,10 @@ data class State(
     }
 
     fun child() = this.copy(
-        trees = trees.map{it.copy()},
+        trees = trees.copyOf(),
         players = players.map{it.copy(
-            costs = it.costs.toMutableList()
-        )}
+            costs = it.costs.copyOf()
+        )}.toTypedArray()
     )
 //    ).also{
 //        it.players[ME].copyFromPlayer(this.players[ME])
@@ -247,7 +246,7 @@ data class State(
     fun newDay() {
         day++
         if (day < MAX_DAY) {
-            val invertSunDir =  StateBits.INVERT_SUN_DIR[day]
+            val invertSunDir = INVERT_SUN_DIR[day]
             trees.forEach {
                 if (it.size > 0 && !isShadowed(it, invertSunDir))
                     players[it.owner].sun += it.size
@@ -293,7 +292,10 @@ data class State(
 
 
     fun isShadowed(tree: Tree, invertSunDir: Int): Boolean {
-        return Board[tree.cellIndex].neighByDirection[invertSunDir].any { trees[it.index].size >= tree.size }
+        return Board[tree.cellIndex].neighByDirection[invertSunDir].filterIndexed { i, cell ->
+            val shadowSize = trees[cell.index].size
+            shadowSize > i && shadowSize >= tree.size
+        }.isNotEmpty()
     }
 
     fun getStatus(): Int {

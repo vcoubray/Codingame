@@ -246,7 +246,7 @@ fun main() {
 //        state3.actions.forEach(::log)
 //        state3.costs.forEach(::log)
 
-        val timeout = if (game.turn == 1) 800 else 70
+        val timeout = if (game.turn == 1) 800 else 90
         val result = Mcts.findNextMove(game, timeout)
 
         println(result)

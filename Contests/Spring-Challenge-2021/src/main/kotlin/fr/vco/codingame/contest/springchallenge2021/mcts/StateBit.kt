@@ -222,7 +222,6 @@ data class StateBits(
         )
     )
 
-
     fun seed(action: SeedAction) =
         this.copy(
             player = otherPlayer(action.player),
@@ -231,7 +230,6 @@ data class StateBits(
                 if (action.player == OPP) players[OPP].copySeed(action) else players[OPP].copy()
             )
         )
-
 
     fun wait(action: WaitAction) =
         if (players[otherPlayer(action.player)].isWaiting) copyNewDay()
@@ -242,7 +240,6 @@ data class StateBits(
                 if (action.player == OPP) players[OPP].copyWait() else players[OPP].copy()
             )
         )
-
 
     fun copyNewDay() = if (day + 1 < MAX_DAY) {
         val invertSunDir = INVERT_SUN_DIR[day]
@@ -257,7 +254,7 @@ data class StateBits(
         )
     } else this.copy(day = day + 1)
 
-
+//
 //    fun simulateRandomGame(): Int {
 ////        log(this)
 //        while (getStatus() == IN_PROGRESS) {

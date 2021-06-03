@@ -63,18 +63,25 @@ fun main() {
 //    val state3 = state2.getNextState(WaitAction(OPP))
 //    val node = MctsNode(null, state3)
 
-
-    measureTimeMillis {
-        var stateBit = StateBits(game).apply(::log)
-        while (stateBit.getStatus() == IN_PROGRESS) {
-            val action = stateBit.getAvailableActions().apply(::log).random().apply(::log)
-            stateBit = stateBit.getNextState(action).apply(::log)
-        }
-    }.let { println("Bits - elapsed time : $it ms") }
-
-
     val stateBits = StateBits(game)
     val state = State().initFromGame(game)
+//    measureTimeMillis {
+//        var stateBit = StateBits(game).apply(::log)
+//        while (stateBit.getStatus() == IN_PROGRESS) {
+//            val action = stateBit.getAvailableActions().apply(::log).random().apply(::log)
+//            stateBit = stateBit.getNextState(action).apply(::log)
+//        }
+//    }.let { println("Bits - elapsed time : $it ms") }
+
+
+    var stateTemp = state.apply(::log)
+    while (stateTemp.getStatus() == IN_PROGRESS) {
+        val action = stateTemp.getAvailableActions().apply(::log).random().apply(::log)
+//            val action = WaitAction(ME)
+        stateTemp = stateTemp.getNextState(action).apply(::log)
+    }
+
+
     simuAction(stateBits, 1000)
     simuAction(stateBits, 1000)
     simuAction(stateBits, 1000)
@@ -120,7 +127,7 @@ fun main() {
 }
 
 fun initTestGame(): Game {
-    Board.cells = listOf(
+    Board.cells = arrayOf(
         Cell(0, 3, listOf(1, 2, 3, 4, 5, 6)),
         Cell(1, 3, listOf(7, 8, 2, 0, 6, 18)),
         Cell(2, 3, listOf(8, 9, 10, 3, 0, 1)),
@@ -162,7 +169,7 @@ fun initTestGame(): Game {
     repeat(BOARD_SIZE) { Board.initNeigh(it) }
 
     val trees = listOf(
-        Tree(16, MEDIUM, ME, false),
+        Tree(16, LITTLE, ME, false),
         Tree(17, LITTLE, ME, false),
 //        Tree(18, MEDIUM, ME, false),
 //        Tree(21, GREAT, ME, false),
@@ -177,9 +184,9 @@ fun initTestGame(): Game {
 
     return Game().apply {
         day = 1
-        sun = 0
+        sun = 2
         score = 0
-        oppSun = 0
+        oppSun = 2
         oppScore = 0
         oppIsWaiting = false
         nutrients = 20

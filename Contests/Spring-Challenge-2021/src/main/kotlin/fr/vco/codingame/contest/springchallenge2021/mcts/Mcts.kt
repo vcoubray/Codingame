@@ -55,28 +55,28 @@ object Mcts {
         totalSimulation = 0
         while (System.currentTimeMillis() < end /*&& PoolState.index < PoolState.MAX_SIZE - 500*/) {
 
-            val startLoop = System.nanoTime()
+//            val startLoop = System.nanoTime()
             val promisingNode = selectPromisingNode(rootNode)
-            val endPromise = System.nanoTime()
-            log("select in ${endPromise - startLoop}")
+//            val endPromise = System.nanoTime()
+//            log("select in ${endPromise - startLoop}")
             //if (!NODES_POOL[promisingNode.stateIndex].isFinish()) {
 
             if (promisingNode.state.getStatus() == IN_PROGRESS) {
                 expand(promisingNode)
             }
-            val endExpand = System.nanoTime()
-            log("expand in ${endExpand - endPromise}")
+//            val endExpand = System.nanoTime()
+//            log("expand in ${endExpand - endPromise}")
 
             val nodeToExplore =
                 if (promisingNode.children.isNotEmpty()) promisingNode.getRandomChild() else promisingNode
             val winner = simulateRandomGame(nodeToExplore)
-            val endExploration = System.nanoTime()
-            log("Explore in ${endExploration - endExpand}")
+//            val endExploration = System.nanoTime()
+//            log("Explore in ${endExploration - endExpand}")
 
             backPropagation(nodeToExplore, winner)
-            val endBackPropa = System.nanoTime()
-            log("backPropagation in ${endBackPropa - endExploration}")
-            log("--------------------------")
+//            val endBackPropa = System.nanoTime()
+//            log("backPropagation in ${endBackPropa - endExploration}")
+//            log("--------------------------")
 
 
         }
@@ -84,7 +84,7 @@ object Mcts {
         if (timeout < 100) maxExecutionTime = max(maxExecutionTime, System.currentTimeMillis() - start)
         log("Execution Time : ${System.currentTimeMillis() - start}")
         log("Total simulation : ${rootNode.visit}")
-        log("Total simulation 2  : ${totalSimulation}")
+//        log("Total simulation 2  : ${totalSimulation}")
         log("Total Node created : $createdNodes")
 //        log("Total State created : ${PoolState.index}")
         log("Total victory : ${rootNode.win}")
