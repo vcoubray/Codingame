@@ -7,17 +7,10 @@ data class Player(
     var score: Int = 0,
     var sun: Int = 0,
     var isWaiting: Boolean = false,
-    val costs: Array<Int>  = Array(5) { 0 },
-//    var firstAction: Boolean = true
+    val costs: Array<Int> = Array(5) { 0 },
 ) {
-//    var score: Int = 0
-//    var sun: Int = 0
-//    var isWaiting: Boolean = false
-//    val costs: MutableList<Int> = MutableList(5) { 0 }
-//    var firstAction: Boolean = true
 
-
-    fun copyFromPlayer(player: Player) {
+    fun initFromPlayer(player: Player) {
         this.score = player.score
         this.sun = player.sun
         this.isWaiting = player.isWaiting
@@ -28,8 +21,28 @@ data class Player(
 
     fun calcScore() = score + sun / 3
 
-    override fun toString() : String {
-        return  "sun : ${sun}, score: $score, isWaiting: $isWaiting"
+    override fun toString(): String {
+        return "sun : ${sun}, score: $score, isWaiting: $isWaiting"
+    }
+
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (javaClass != other?.javaClass) return false
+
+        other as Player
+
+        if (score != other.score) return false
+        if (sun != other.sun) return false
+        if (isWaiting != other.isWaiting) return false
+
+        return true
+    }
+
+    override fun hashCode(): Int {
+        var result = score
+        result = 31 * result + sun
+        result = 31 * result + isWaiting.hashCode()
+        return result
     }
 
 }
@@ -38,7 +51,7 @@ data class Player(
 data class State(
     var player: Int = ME,
     var day: Int = 0,
-    var nutrients: Int  = 0,
+    var nutrients: Int = 0,
     val trees: Array<Tree> = Array(BOARD_SIZE) { Tree(it) },
     val players: Array<Player> = arrayOf(
         Player(), // ME
@@ -50,26 +63,13 @@ data class State(
         val INVERT_SUN_DIR = List(MAX_DAY) { (it + 3) % 6 }.toTypedArray()
     }
 
-//    val players = listOf(
-//        //Player(), // Not a real player (just for id 0)
-//        Player(), // ME
-//        Player() // OPP
-//    )
-
-//    val players : Map<Int,Player> = mapOf(ME to Player(), OPP to Player())
-//    val trees: List<Tree> = List(BOARD_SIZE) { Tree(it) }
-//    private val actions: MutableList<Action> = mutableListOf() //by lazy(::getAvailableActions)
-//    fun getAvailableActions(): List<Action>{
-//        if (actions.isEmpty()) initAvailableActions()
-//        return actions
-//    }
-
     override fun toString(): String {
         return """
             *********************
-            Day : $day, Nutrients : $nutrients
-            Player : $player, ${players[player]}
-            ${trees.filter { it.owner == player }.joinToString("\n            ")}
+            Day : $day, Nutrients : $nutrients, player : $player
+            ME : ${players[ME]}
+            OPP : ${players[OPP]}
+            ${trees.filter { it.owner != NONE }.joinToString("\n            ")}
         """.trimIndent()
     }
 
@@ -101,14 +101,13 @@ data class State(
         calcCosts(ME)
         calcCosts(OPP)
         player = ME
-        //actions.clear()
     }
 
-    fun copyFromState(state : State) = apply {
+    fun initFromState(state: State) = apply {
         day = state.day
         player = state.player
         nutrients = state.nutrients
-        players.forEachIndexed{i, it -> it.copyFromPlayer(state.players[i]) }
+        players.forEachIndexed { i, it -> it.initFromPlayer(state.players[i]) }
         trees.forEach { tree ->
             tree.size = state.trees[tree.cellIndex].size
             tree.owner = state.trees[tree.cellIndex].owner
@@ -117,112 +116,85 @@ data class State(
 
     }
 
-    fun getAvailableActions() : List<Action>{
-        val actions = mutableListOf<Action>(WaitAction(player))
+    fun getAvailableActions(): List<Action> {
+        if (players[player].isWaiting) return listOf(WaitAction(player))
+
+        val actions = mutableListOf<Action>()
 
         val nonSeedableCell = if (
             players[player].costs[SEED_ACTION] == 0
         ) {
-            trees.filter{it.owner==ME}.flatMap { Board[it.cellIndex].neighIndex}
+            trees.filter { it.owner == ME }.flatMap { Board[it.cellIndex].neighIndex }
         } else emptyList()
 
+        trees.forEach forEachTree@{ tree ->
+            if (tree.size == NONE) return@forEachTree
+            if (tree.isDormant) return@forEachTree
+            if (tree.owner != player) return@forEachTree
+            if (tree.size == GREAT && day >= 12 &&
+                players[player].canPay(COMPLETE_ACTION)
+            ) {
+                actions.add(CompleteAction(player, tree))
+            } else if (tree.size < GREAT && players[player].canPay(GROW_ACTION[tree.size])) {
+                actions.add(GrowAction(player, tree))
+            }
+            if (tree.size > LITTLE &&
+                //players[player].firstAction &&
+                players[player].costs[SEED_ACTION] == 0 &&
+                players[player].canPay(SEED_ACTION)
+            ) {
 
-        if (!players[player].isWaiting) {
-            trees.forEach forEachTree@{ tree ->
-                if (tree.size == NONE) return@forEachTree
-                if (tree.isDormant) return@forEachTree
-                if (tree.owner != player) return@forEachTree
-                if (tree.size == GREAT &&
-                    day >= 12 &&
-                    players[player].canPay(COMPLETE_ACTION)
-//                    (players[player].costs[3] >= 4 || day > 20)
-                ) {
-                    actions.add(CompleteAction(player, tree))
-                }
-                else if (tree.size < GREAT && players[player].canPay(GROW_ACTION[tree.size])) {
-                    actions.add(GrowAction(player, tree))
-                }
-                if (tree.size > LITTLE &&
-                    //players[player].firstAction &&
-                    players[player].costs[SEED_ACTION] == 0 &&
-                    players[player].canPay(SEED_ACTION)
-                ) {
-                    Board[tree.cellIndex].neighByRange[tree.size].forEach { target ->
-                        if (trees[target.index].size == NONE && nonSeedableCell.none{target.index == it}) {
-                            actions.add(SeedAction(player, tree, target))
-                        }
-                    }
-                }
+                val targets = Board[tree.cellIndex].neighByRange[tree.size]
+                    .filter{target -> trees[target.index].size == NONE}
+                (targets.filter{target -> nonSeedableCell.none { target.index == it }}
+                    .takeIf{ it.isNotEmpty() }?:targets)
+                    .forEach{ target -> actions.add(SeedAction(player, tree, target)) }
+//                Board[tree.cellIndex].neighByRange[tree.size].forEach { target ->
+//                    if (trees[target.index].size == NONE && nonSeedableCell.none { target.index == it }) {
+//                        actions.add(SeedAction(player, tree, target))
+//                    }
+//                }
             }
         }
-        return actions
+        return actions.takeIf{it.isNotEmpty()}?:listOf(WaitAction(player))
     }
 
-    fun child() = this.copy(
+    fun basicCopy() = this.copy(
         trees = trees.copyOf(),
-        players = players.map{it.copy(
-            costs = it.costs.copyOf()
-        )}.toTypedArray()
+        players = players.map {
+            it.copy(
+                costs = it.costs.copyOf()
+            )
+        }.toTypedArray()
     )
-//    ).also{
-//        it.players[ME].copyFromPlayer(this.players[ME])
-//        it.players[OPP].copyFromPlayer(this.players[OPP])
-//
-////        this.trees.forEachIndexed { i, tree ->
-////            it.trees[i].isDormant = tree.isDormant
-////            it.trees[i].owner = tree.owner
-////            it.trees[i].size = tree.size
-////        }
-//    }
-
-//    fun copyCustom() = State().also {
-//      //  it.parentPlayer = player
-//        it.nutrients = nutrients
-//        it.day = day
-//        it.player = player
-//        it.players[ME].copyFromPlayer(this.players[ME])
-//        it.players[OPP].copyFromPlayer(this.players[OPP])
-//
-//        this.trees.forEachIndexed { i, tree ->
-//            it.trees[i].isDormant = tree.isDormant
-//            it.trees[i].owner = tree.owner
-//            it.trees[i].size = tree.size
-//        }
-////        it.actions.clear()
-//
-//    }
-
 
     fun getNextState(action: Action): State {
-        return child()
-            .also {
-            //it.action = action
-                when (action) {
-                    is CompleteAction -> it.complete(action)
-                    is GrowAction -> it.grow(action)
-                    is SeedAction -> it.seed(action)
-                    is WaitAction -> it.wait(action)
-                }
-                it.player = if (action.player == ME) OPP else ME //3 - it.player
+        return basicCopy().also {
+            when (action) {
+                is CompleteAction -> it.complete(action)
+                is GrowAction -> it.grow(action)
+                is SeedAction -> it.seed(action)
+                is WaitAction -> it.wait(action)
+            }
+            it.player = switchPlayer(action.player)
 
-                if (it.players[ME].isWaiting && it.players[OPP].isWaiting) {
-                    it.newDay()
-                }
-//                it.actions.clear()
+            if (it.players[ME].isWaiting && it.players[OPP].isWaiting) {
+                it.newDay()
+            }
         }
     }
 
-    fun complete(action: CompleteAction){
+    fun complete(action: CompleteAction) {
         players[action.player].sun -= players[action.player].costs[COMPLETE_ACTION]
-        players[action.player].costs[COMPLETE_ACTION]--
+        players[action.player].costs[GROW_ACTION[MEDIUM]]--
         players[action.player].score += nutrients + BONUS_RICHNESS[Board[action.treeId].richness]
         nutrients--
         trees[action.treeId].size = NONE
-        trees[action.treeId].owner = -1
+        trees[action.treeId].owner = NONE
         trees[action.treeId].isDormant = false
     }
 
-    fun grow(action : GrowAction) {
+    fun grow(action: GrowAction) {
         players[action.player].sun -= players[action.player].costs[GROW_ACTION[action.size]]
         players[action.player].costs[action.size]--
         players[action.player].costs[action.size + 1]++
@@ -239,7 +211,7 @@ data class State(
         trees[action.source].isDormant = true
     }
 
-    fun wait(action: WaitAction){
+    fun wait(action: WaitAction) {
         players[action.player].isWaiting = true
     }
 
@@ -248,43 +220,37 @@ data class State(
         if (day < MAX_DAY) {
             val invertSunDir = INVERT_SUN_DIR[day]
             trees.forEach {
-                if (it.size > 0 && !isShadowed(it, invertSunDir))
+                if (it.size > 0 && !isShadowed(it, invertSunDir)) {
                     players[it.owner].sun += it.size
-            }
+                    it.isDormant = false
+                }
 
+            }
             players[ME].isWaiting = false
             players[OPP].isWaiting = false
-//            players[ME].firstAction = true
-//            players[OPP].firstAction = true
-
-            trees.forEach { t -> t.isDormant = false }
             player = ME
         }
     }
 
 
     fun simulateRandomGame(): Int {
-//        log(this)
         while (getStatus() == IN_PROGRESS) {
             val action = getAvailableActions().random()
+//            log(this)
 //            log(action)
+//            log("--------")
             when (action) {
                 is CompleteAction -> complete(action)
                 is GrowAction -> grow(action)
                 is SeedAction -> seed(action)
                 is WaitAction -> wait(action)
             }
-//            players[ME].firstAction = false
-//            players[OPP].firstAction = false
-             //3 - player
+            //3 - player
             if (players[ME].isWaiting && players[OPP].isWaiting) {
                 newDay()
             } else {
-                player = if(action.player == ME ) OPP else ME
+                player = switchPlayer(action.player)
             }
-//            actions.clear()
-//            log(this)
-
         }
 
         return getStatus()
@@ -307,6 +273,28 @@ data class State(
 //            trees.count { it.owner == OPP } > trees.count { it.owner == ME } -> OPP
             else -> DRAW
         }
+    }
+
+    fun switchPlayer(player: Int) = if (player == ME) OPP else ME
+
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (javaClass != other?.javaClass) return false
+
+        other as State
+
+        if (player != other.player) return false
+        if (day != other.day) return false
+        if (nutrients != other.nutrients) return false
+
+        return true
+    }
+
+    override fun hashCode(): Int {
+        var result = player
+        result = 31 * result + day
+        result = 31 * result + nutrients
+        return result
     }
 
 

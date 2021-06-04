@@ -16,7 +16,7 @@ class MctsNode(
 ) {
 
     var children: List<MctsNode> = emptyList()
-    val actions by lazy { state.getAvailableActions() }
+//    val actions by lazy { state.getAvailableActions() }
     var win: Int = 0
     var visit: Int = 0
 
@@ -27,14 +27,13 @@ class MctsNode(
 
 object Mcts {
     var createdNodes = 0
-    var maxExecutionTime = 0L
+//    var maxExecutionTime = 0L
+    var executionTime=0L
     var totalSimulation = 0
-    val simulationState = State()
+    private val simulationState = State()
+    lateinit var rootNode : MctsNode
 
     fun findNextMove(game: Game, timeout: Int = 90): Action {
-//        PoolState.reset()
-//
-//        val rootState = PoolState.getNextState().initFromGame(game)
         val rootState = State().initFromGame(game)
         return findNextMove(rootState, timeout)
     }
@@ -43,66 +42,41 @@ object Mcts {
         val start = System.currentTimeMillis()
         val end = System.currentTimeMillis() + timeout
 
-
-//        PoolState.reset()
-//        val rootState = PoolState.getNextState().initFromGame(game)
-        //val rootState = State().initFromGame(game)
-
-//        log("Start MCTS : ${PoolState.index} ")
-        //val rootNode = MctsNode(null, 0)
-        val rootNode = MctsNode(null, state,WaitAction(ME))
+        rootNode = MctsNode(null, state,WaitAction(ME))
         createdNodes = 1
         totalSimulation = 0
-        while (System.currentTimeMillis() < end /*&& PoolState.index < PoolState.MAX_SIZE - 500*/) {
+        while (System.currentTimeMillis() < end ) {
 
-//            val startLoop = System.nanoTime()
             val promisingNode = selectPromisingNode(rootNode)
-//            val endPromise = System.nanoTime()
-//            log("select in ${endPromise - startLoop}")
-            //if (!NODES_POOL[promisingNode.stateIndex].isFinish()) {
 
             if (promisingNode.state.getStatus() == IN_PROGRESS) {
                 expand(promisingNode)
             }
-//            val endExpand = System.nanoTime()
-//            log("expand in ${endExpand - endPromise}")
 
             val nodeToExplore =
                 if (promisingNode.children.isNotEmpty()) promisingNode.getRandomChild() else promisingNode
             val winner = simulateRandomGame(nodeToExplore)
-//            val endExploration = System.nanoTime()
-//            log("Explore in ${endExploration - endExpand}")
 
             backPropagation(nodeToExplore, winner)
-//            val endBackPropa = System.nanoTime()
-//            log("backPropagation in ${endBackPropa - endExploration}")
-//            log("--------------------------")
-
-
         }
 
-        if (timeout < 100) maxExecutionTime = max(maxExecutionTime, System.currentTimeMillis() - start)
-        log("Execution Time : ${System.currentTimeMillis() - start}")
+//        if (timeout < 100) maxExecutionTime = max(maxExecutionTime, System.currentTimeMillis() - start)
+        executionTime = System.currentTimeMillis() - start
+        log("MCTS Execution Time : ${executionTime}")
         log("Total simulation : ${rootNode.visit}")
-//        log("Total simulation 2  : ${totalSimulation}")
         log("Total Node created : $createdNodes")
-//        log("Total State created : ${PoolState.index}")
         log("Total victory : ${rootNode.win}")
 
 
-        var current: MctsNode? = rootNode
-//        while (current?.state?.getStatus() == IN_PROGRESS) {
-//            log("Day : ${current.state.day}, Player : ${current.action?.player},  ${current.action}")
-//            current = current.children.maxByOrNull { it.win.toDouble() / it.visit }
-//        }
         val bestNode = rootNode.children.maxByOrNull { it.visit }
         return bestNode?.action
          ?: WaitAction(ME)
 
     }
 
+    fun summary() = "${rootNode.win}/${rootNode.visit} -- ${executionTime}ms"
 
-    fun selectPromisingNode(node: MctsNode): MctsNode {
+    private fun selectPromisingNode(node: MctsNode): MctsNode {
         var bestNode = node
         while (bestNode.children.isNotEmpty()) {
             val parentVisit = ln(bestNode.visit.toDouble())
@@ -112,42 +86,25 @@ object Mcts {
         return bestNode
     }
 
-    fun uct(node: MctsNode, totalVisit: Double): Double {
+    private fun uct(node: MctsNode, totalVisit: Double): Double {
         if (node.visit == 0) return Double.MAX_VALUE
-        return node.win.toDouble() / node.visit.toDouble() + sqrt(totalVisit / node.visit.toDouble())
+        return node.win.toDouble() / node.visit.toDouble() + 1.41* sqrt(totalVisit / node.visit.toDouble())
     }
 
 
-    fun expand(node: MctsNode) {
-//        currentStateIndex = NODES_POOL[node.stateIndex].initChildren(currentStateIndex)
-//        NODES_POOL[node.stateIndex].children.forEach { childStateIndex ->
-//            val nodeChild = MctsNode(
-//                parent = node,
-//                stateIndex = childStateIndex
-//            )
-//            node.children.add(nodeChild)
-//        }
-        //log("expand : ${node.state.action}")
-        node.children = node.actions.map {
+    private fun expand(node: MctsNode) {
+
+        node.children = node.state.getAvailableActions().map {
             MctsNode(node, node.state.getNextState(it), it)
         }
         createdNodes += node.children.size
 
-//        currentStateIndex = NODES_POOL[node.stateIndex].initChildren(currentStateIndex)
-//        NODES_POOL[node.stateIndex].children.forEach { childStateIndex ->
-//            val nodeChild = MctsNode(
-//                parent = node,
-//                stateIndex = childStateIndex
-//            )
-//            node.children.add(nodeChild)
-//        }
     }
 
-    fun backPropagation(node: MctsNode, winner: Int) {
+    private fun backPropagation(node: MctsNode, winner: Int) {
         var current: MctsNode? = node
         while (current != null) {
             current.visit++
-            //if (isMe == NODES_POOL[current.stateIndex].myTurn) {
             if (winner == current.action!!.player) {
                 current.win++
             }
@@ -158,10 +115,8 @@ object Mcts {
 
 
     fun simulateRandomGame(node: MctsNode): Int {
-        simulationState.copyFromState(node.state)
+        simulationState.initFromState(node.state)
         return simulationState.simulateRandomGame()
-
-//        return node.state.child().simulateRandomGame()
     }
 
 

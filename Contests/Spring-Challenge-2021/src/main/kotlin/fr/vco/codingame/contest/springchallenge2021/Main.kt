@@ -2,53 +2,10 @@ package fr.vco.codingame.contest.springchallenge2021
 
 import fr.vco.codingame.contest.springchallenge2021.mcts.Game
 import fr.vco.codingame.contest.springchallenge2021.mcts.Mcts
-//import fr.vco.codingame.contest.springchallenge2021.mcts.PoolState
 import java.util.*
 import kotlin.math.max
 
 fun log(message: Any?) = System.err.println(message.toString())
-
-
-data class Tree(
-    val cellIndex: Int,
-    var size: Int = NONE,
-    var owner: Int = -1,
-    var isDormant: Boolean = false
-)
-
-fun List<Tree>.getBits() = this.fold(0L) { acc, tree -> acc.addTree(tree.cellIndex) }
-
-sealed class Action(val player: Int, val cost: Int) {
-    fun print(message: String = "") = "$this $message"
-}
-
-
-class SeedAction(player: Int, val source: Int, val target: Int, cost: Int) : Action(player, cost) {
-    constructor(player: Int, source: Tree, target: Cell, cost: Int = 0) : this(
-        player,
-        source.cellIndex,
-        target.index,
-        cost
-    )
-
-    override fun toString() = "SEED $source $target"
-}
-
-class GrowAction(player: Int, val treeId: Int, val size: Int, cost: Int) : Action(player, cost) {
-    constructor (player: Int, tree: Tree, cost: Int = 0) : this(player, tree.cellIndex, tree.size, cost)
-
-    override fun toString() = "GROW $treeId"
-}
-
-class CompleteAction(player: Int, val treeId: Int) : Action(player, COMPLETE_COST) {
-    constructor(player: Int, tree: Tree) : this(player, tree.cellIndex)
-
-    override fun toString() = "COMPLETE $treeId"
-}
-
-class WaitAction(player: Int) : Action(player, 0) {
-    override fun toString() = "WAIT"
-}
 
 
 //class State2(
@@ -196,25 +153,6 @@ fun possibleMoves(input: Scanner): List<String> {
     return List(numberOfPossibleMoves) { input.nextLine() }
 }
 
-
-//val POOL = List(PoolState.MAX_SIZE) { State() }
-////
-//
-//object PoolState {
-//    const val MAX_SIZE = 50_000
-//
-//
-//    var index = 0
-//
-//    //fun nextIndex() = index++
-//    operator fun get(i: Int) = POOL[i]
-//    fun getNextState() = POOL[index++]
-//    fun reset() {
-//        index = 0
-//    }
-//}
-
-
 fun main() {
     val input = Scanner(System.`in`)
 
@@ -225,11 +163,8 @@ fun main() {
 
     var maxTime = 0L
 
-//    PoolState.reset()
-
     val game = Game()
 
-    // game loop
     while (true) {
         game.readInput(input)
         game.turn++
@@ -237,19 +172,10 @@ fun main() {
 
         log("Read state in ${game.currentExecutionTime()}ms")
 
-//        val state = State().initFromGame(game)
-//        state.actions.forEach(::log)
-//        state.costs.forEach(::log)
-//
-//        val state2 = state.getNextState(state.actions[0])
-//        val state3 = state2.getNextState(state.actions[1])
-//        state3.actions.forEach(::log)
-//        state3.costs.forEach(::log)
+        val timeout = if (game.turn == 1) 900 else 90
+        val action = Mcts.findNextMove(game, timeout)
 
-        val timeout = if (game.turn == 1) 800 else 90
-        val result = Mcts.findNextMove(game, timeout)
-
-        println(result)
+        action.print(Mcts.summary())
 
         val executionTime = game.currentExecutionTime()
         maxTime = max(executionTime, maxTime)

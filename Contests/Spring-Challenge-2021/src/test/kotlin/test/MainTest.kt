@@ -27,11 +27,11 @@ fun simuAction(state: State, loop: Int = 1) {
 fun simu(state: StateBits, loop: Int = 1) {
     measureTimeMillis {
         repeat(loop) {
-            var state = state
-            while (state.getStatus() == IN_PROGRESS) {
-                val action = state.getAvailableActions().random()
+            var stateTmp = state
+            while (stateTmp.getStatus() == IN_PROGRESS) {
+                val action = stateTmp.getAvailableActions().random()
 //            val action = WaitAction(state.player)
-                state = state.getNextState(action)
+                stateTmp = stateTmp.getNextState(action)
             }
         }
     }.let { println("Bits - $loop ineration - elapsed time : $it ms") }
@@ -41,16 +41,14 @@ fun simu(state: StateBits, loop: Int = 1) {
 fun simu(state: State, loop: Int = 1) {
     measureTimeMillis {
         repeat(loop) {
-            var state = state
-            while (state.getStatus() == IN_PROGRESS) {
-                val action = state.getAvailableActions().random()
+            var stateTmp = state
+            while (stateTmp.getStatus() == IN_PROGRESS) {
+                val action = stateTmp.getAvailableActions().random()
 //            val action = WaitAction(ME)
-                state = state.getNextState(action)
+                stateTmp = stateTmp.getNextState(action)
             }
         }
     }.let { println("Normal - $loop ineration - elapsed time : $it ms") }
-
-
 }
 
 
@@ -65,6 +63,8 @@ fun main() {
 
     val stateBits = StateBits(game)
     val state = State().initFromGame(game)
+
+
 //    measureTimeMillis {
 //        var stateBit = StateBits(game).apply(::log)
 //        while (stateBit.getStatus() == IN_PROGRESS) {
@@ -74,31 +74,31 @@ fun main() {
 //    }.let { println("Bits - elapsed time : $it ms") }
 
 
-    var stateTemp = state.apply(::log)
-    while (stateTemp.getStatus() == IN_PROGRESS) {
-        val action = stateTemp.getAvailableActions().apply(::log).random().apply(::log)
-//            val action = WaitAction(ME)
-        stateTemp = stateTemp.getNextState(action).apply(::log)
-    }
+//    var stateTemp = state.apply(::log)
+//    while (stateTemp.getStatus() == IN_PROGRESS) {
+//        val action = stateTemp.getAvailableActions().apply(::log).random().apply(::log)
+////            val action = WaitAction(ME)
+//        stateTemp = stateTemp.getNextState(action).apply(::log)
+//    }
+//
 
-
-    simuAction(stateBits, 1000)
-    simuAction(stateBits, 1000)
-    simuAction(stateBits, 1000)
-    simuAction(stateBits, 1000)
-    simuAction(state, 1000)
-    simuAction(state, 1000)
-    simuAction(state, 1000)
-    simuAction(state, 1000)
-
-    simu(stateBits, 1000)
-    simu(stateBits, 1000)
-    simu(stateBits, 1000)
-    simu(stateBits, 1000)
-    simu(stateBits, 1000)
-    simu(stateBits, 1000)
-    simu(stateBits, 1000)
-    simu(stateBits, 1000)
+//    simuAction(stateBits, 1000)
+//    simuAction(stateBits, 1000)
+//    simuAction(stateBits, 1000)
+//    simuAction(stateBits, 1000)
+//    simuAction(state, 1000)
+//    simuAction(state, 1000)
+//    simuAction(state, 1000)
+//    simuAction(state, 1000)
+//
+//    simu(stateBits, 1000)
+//    simu(stateBits, 1000)
+//    simu(stateBits, 1000)
+//    simu(stateBits, 1000)
+//    simu(stateBits, 1000)
+//    simu(stateBits, 1000)
+//    simu(stateBits, 1000)
+//    simu(stateBits, 1000)
     simu(state, 1000)
     simu(state, 1000)
     simu(state, 1000)
@@ -107,8 +107,6 @@ fun main() {
     simu(state, 1000)
     simu(state, 1000)
     simu(state, 1000)
-
-
 
     println("------")
 
@@ -117,12 +115,23 @@ fun main() {
 
 //    simulation.simulateRandomGame()
 
-//    repeat(10) {
-//        Mcts.findNextMove(state3, 80)
+//    log(state)
+//    repeat(1) {
+//        Mcts.findNextMove(state, 800)
 //        println("----")
 //    }
+//    var current: MctsNode? = Mcts.rootNode
+//    while (current?.state?.getStatus() == IN_PROGRESS) {
+//        log("Day : ${current.state.day}, Player : ${current.action?.player},  ${current.action}")
+//        //current.children.forEach{log("${it.action}, ${it.win} : ${it.visit}")}
+//        current = current.children.maxByOrNull { it.win.toDouble() / it.visit }
+//        println("----------")
+//    }
+
+
 //    println("Max Execution Time : ${Mcts.maxExecutionTime}ms")
-//    Mcts.simulateRandomGame(node)
+      val node = MctsNode(null,state,WaitAction(ME))
+      Mcts.simulateRandomGame(node)
 
 }
 
@@ -169,14 +178,14 @@ fun initTestGame(): Game {
     repeat(BOARD_SIZE) { Board.initNeigh(it) }
 
     val trees = listOf(
-        Tree(16, LITTLE, ME, false),
-        Tree(17, LITTLE, ME, false),
+//        Tree(16, LITTLE, ME, false),
+//        Tree(17, MEDIUM, ME, false),
 //        Tree(18, MEDIUM, ME, false),
 //        Tree(21, GREAT, ME, false),
 //        Tree(35, MEDIUM, ME, false),
 //        Tree(19, LITTLE, ME, false),
-//        Tree(23, LITTLE, ME, false),
-//        Tree(19, LITTLE, ME, false),
+        Tree(23, LITTLE, ME, false),
+        Tree(19, LITTLE, ME, false),
         Tree(28, LITTLE, OPP, false),
         Tree(32, LITTLE, OPP, false),
 

@@ -8,7 +8,7 @@ data class PlayerBit(
     var sun: Int = 0,
     var isWaiting: Boolean = false,
     val trees: LongArray = LongArray(4) { 0L },
-    val isDormant: Trees = 0
+    var isDormant: Trees = 0
 
 ) {
 
@@ -25,54 +25,67 @@ data class PlayerBit(
         isDormant = trees.filter { it.isDormant }.getBits()
     )
 
-    val sizeMap = trees.reduce { acc, l -> acc or l }.getIndexes().map { it to getTreeSize(it) }.toMap()
+    val sizeMap by lazy{ trees.reduce { acc, l -> acc or l }.getIndexes().map { it to getTreeSize(it) }.toMap()}
     fun getTreeSize(idTree: Int) = trees.indexOfFirst { it[idTree] == 1L }
     fun calcScore() = score + sun / 3
 
-    fun copyComplete(action: CompleteAction, nutrients: Int): PlayerBit {
+    fun baseCopy(): PlayerBit {
         return this.copy(
-            sun = sun - action.cost,
-            score = score + nutrients + BONUS_RICHNESS[Board[action.treeId].richness],
-            trees = longArrayOf(
-                trees[SEED],
-                trees[LITTLE],
-                trees[MEDIUM],
-                trees[GREAT].removeTree(action.treeId)
-            )
+            trees = trees.copyOf()
         )
+    }
+
+    fun copyComplete(action: CompleteAction, nutrients: Int): PlayerBit {
+        return baseCopy().also{
+            it.sun = sun - action.cost
+            it.score = score + nutrients + BONUS_RICHNESS[Board[action.treeId].richness]
+            it.trees[GREAT] = trees[GREAT].removeTree(action.treeId)
+        }
+
+    }
+
+    fun grow(action: GrowAction) = apply {
+        sun -= action.cost
+        isDormant = isDormant.addTree(action.treeId)
+        trees[action.size] = trees[action.size].removeTree(action.treeId)
+        trees[action.size+1] = trees[action.size + 1].addTree(action.treeId)
     }
 
     fun copyGrow(action: GrowAction): PlayerBit {
-        val newTrees = trees.copyOf()
-        newTrees[action.size] = newTrees[action.size].removeTree(action.treeId)
-        newTrees[action.size + 1] = newTrees[action.size + 1].addTree(action.treeId)
-        return this.copy(
-            sun = sun - action.cost,
-            isDormant = isDormant.addTree(action.treeId),
-            trees = newTrees
-        )
+        return baseCopy().also{
+            it.sun = sun - action.cost
+            it.isDormant = isDormant.addTree(action.treeId)
+            it.trees[action.size] = trees[action.size].removeTree(action.treeId)
+            it.trees[action.size+1] = trees[action.size + 1].addTree(action.treeId)
+        }
+//        val newTrees = trees.copyOf()
+//        newTrees[action.size] = newTrees[action.size].removeTree(action.treeId)
+//        newTrees[action.size + 1] = newTrees[action.size + 1].addTree(action.treeId)
+//        return this.copy(
+//            sun = sun - action.cost,
+//            isDormant = isDormant.addTree(action.treeId),
+//            trees = newTrees
+//        )
     }
 
     fun copySeed(action: SeedAction): PlayerBit {
-        return this.copy(
-            sun = sun - action.cost,
-            isDormant = isDormant
+        return baseCopy().also{
+            it.sun = sun - action.cost
+            it.isDormant = isDormant
                 .addTree(action.source)
-                .addTree(action.target),
-            trees = longArrayOf(
-                trees[SEED].addTree(action.target),
-                trees[LITTLE],
-                trees[MEDIUM],
-                trees[GREAT]
-            )
-        )
+                .addTree(action.target)
+            it.trees[SEED] = trees[SEED].addTree(action.target)
+        }
     }
 
     fun copyWait(): PlayerBit {
-        return copy(
-            isWaiting = true,
-            trees = trees.copyOf()
-        )
+        return baseCopy().also {
+            it.waitAction()
+        }
+    }
+
+    fun waitAction(){
+        isWaiting = true
     }
 
     fun copyNewDay(invertSunDir: Int, treesMap: Map<Int, Int>): PlayerBit {
@@ -84,13 +97,17 @@ data class PlayerBit(
                     shadowSize > i && shadowSize >= size
                 }.isEmpty()) income += size
         }
-
-        return copy(
-            sun = sun + income,
-            isWaiting = false,
-            isDormant = 0,
-            trees = trees.copyOf()
-        )
+        return baseCopy().also{
+            it.sun = sun + income
+            it.isWaiting = false
+            it.isDormant = 0
+        }
+//        return copy(
+//            sun = sun + income,
+//            isWaiting = false,
+//            isDormant = 0,
+//            trees = trees.copyOf()
+//        )
     }
 
     override fun toString(): String {
@@ -183,7 +200,7 @@ data class StateBits(
 
             if (canComplete && size == GREAT) {
                 actions.add(CompleteAction(player, treeId))
-            } else if (size < GREAT && sun > costs[GROW_ACTION[size]]) {
+            } else if (size < GREAT && sun >= costs[GROW_ACTION[size]]) {
                 actions.add(GrowAction(player, treeId, size, costs[GROW_ACTION[size]]))
             }
             if (size >= MEDIUM && canSeed) {
@@ -199,11 +216,17 @@ data class StateBits(
 
     fun getNextState(action: Action) = when (action) {
         is CompleteAction -> copyComplete(action)
-        is GrowAction -> grow(action)
+        is GrowAction -> this.baseCopy().also{it.grow(action)}
         is SeedAction -> seed(action)
         is WaitAction -> wait(action)
     }
 
+    fun baseCopy() = this.copy(
+        players = arrayOf(
+            players[ME].baseCopy(),
+            players[OPP].baseCopy()
+        )
+    )
 
     fun copyComplete(action: CompleteAction) = this.copy(
         player = otherPlayer(action.player),
@@ -214,45 +237,49 @@ data class StateBits(
         )
     )
 
-    fun grow(action: GrowAction) = this.copy(
-        player = otherPlayer(action.player),
-        players = arrayOf(
-            if (action.player == ME) players[ME].copyGrow(action) else players[ME].copy(),
-            if (action.player == OPP) players[OPP].copyGrow(action) else players[OPP].copy()
-        )
-    )
+    fun grow(action: GrowAction) {
+        player = otherPlayer(action.player)
+        players[action.player].grow(action)
+    }
+//        this.copy(
+//            player = otherPlayer(action.player),
+//            players = arrayOf(
+//                if (action.player == ME) players[ME].copyGrow(action) else players[ME].copy(),
+//                if (action.player == OPP) players[OPP].copyGrow(action) else players[OPP].copy()
+//            )
+//        )
 
-    fun seed(action: SeedAction) =
-        this.copy(
-            player = otherPlayer(action.player),
-            players = arrayOf(
-                if (action.player == ME) players[ME].copySeed(action) else players[ME].copy(),
-                if (action.player == OPP) players[OPP].copySeed(action) else players[OPP].copy()
+        fun seed(action: SeedAction) =
+            this.copy(
+                player = otherPlayer(action.player),
+                players = arrayOf(
+                    if (action.player == ME) players[ME].copySeed(action) else players[ME].copy(),
+                    if (action.player == OPP) players[OPP].copySeed(action) else players[OPP].copy()
+                )
             )
-        )
 
-    fun wait(action: WaitAction) =
-        if (players[otherPlayer(action.player)].isWaiting) copyNewDay()
-        else this.copy(
-            player = otherPlayer(action.player),
-            players = arrayOf(
-                if (action.player == ME) players[ME].copyWait() else players[ME].copy(),
-                if (action.player == OPP) players[OPP].copyWait() else players[OPP].copy()
+        fun wait(action: WaitAction) =
+            if (players[otherPlayer(action.player)].isWaiting) copyNewDay()
+            else this.copy(
+                player = otherPlayer(action.player),
+                players = arrayOf(
+                    if (action.player == ME) players[ME].copyWait() else players[ME].copy(),
+                    if (action.player == OPP) players[OPP].copyWait() else players[OPP].copy()
+                )
             )
-        )
 
-    fun copyNewDay() = if (day + 1 < MAX_DAY) {
-        val invertSunDir = INVERT_SUN_DIR[day]
-        val treesMap = players[ME].sizeMap + players[OPP].sizeMap
-        this.copy(
-            player = ME,
-            day = day + 1,
-            players = arrayOf(
-                players[ME].copyNewDay(invertSunDir, treesMap),
-                players[OPP].copyNewDay(invertSunDir, treesMap)
+        fun copyNewDay() = if (day + 1 < MAX_DAY) {
+            val invertSunDir = INVERT_SUN_DIR[day]
+            val treesMap = players[ME].sizeMap + players[OPP].sizeMap
+            this.copy(
+                player = ME,
+                day = day + 1,
+                players = arrayOf(
+                    players[ME].copyNewDay(invertSunDir, treesMap),
+                    players[OPP].copyNewDay(invertSunDir, treesMap)
+                )
             )
-        )
-    } else this.copy(day = day + 1)
+        } else this.copy(day = day + 1)
 
 //
 //    fun simulateRandomGame(): Int {
@@ -282,38 +309,39 @@ data class StateBits(
 //        return getStatus()
 //    }
 
-    fun otherPlayer(playerId: Int = player) = if (playerId == ME) OPP else ME
+        fun otherPlayer(playerId: Int = player) = if (playerId == ME) OPP else ME
 
-    fun getStatus() = when {
-        day < MAX_DAY -> IN_PROGRESS
-        players[ME].calcScore() > players[OPP].calcScore() -> ME
-        players[OPP].calcScore() > players[ME].calcScore() -> OPP
+        fun getStatus() = when {
+            day < MAX_DAY -> IN_PROGRESS
+            players[ME].calcScore() > players[OPP].calcScore() -> ME
+            players[OPP].calcScore() > players[ME].calcScore() -> OPP
 //            trees.count { it.owner == ME } > trees.count { it.owner == OPP } -> ME
 //            trees.count { it.owner == OPP } > trees.count { it.owner == ME } -> OPP
-        else -> DRAW
-    }
+            else -> DRAW
+        }
 
 
-    override fun equals(other: Any?): Boolean {
-        if (this === other) return true
-        if (javaClass != other?.javaClass) return false
+        override fun equals(other: Any?): Boolean {
+            if (this === other) return true
+            if (javaClass != other?.javaClass) return false
 
-        other as StateBits
+            other as StateBits
 
-        if (player != other.player) return false
-        if (day != other.day) return false
-        if (nutrients != other.nutrients) return false
-        if (!players.contentEquals(other.players)) return false
+            if (player != other.player) return false
+            if (day != other.day) return false
+            if (nutrients != other.nutrients) return false
+            if (!players.contentEquals(other.players)) return false
 
-        return true
-    }
+            return true
+        }
 
-    override fun hashCode(): Int {
-        var result = player
-        result = 31 * result + day
-        result = 31 * result + nutrients
-        result = 31 * result + players.contentHashCode()
-        return result
-    }
+        override fun hashCode(): Int {
+            var result = player
+            result = 31 * result + day
+            result = 31 * result + nutrients
+            result = 31 * result + players.contentHashCode()
+            return result
+        }
+
 
 }
