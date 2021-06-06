@@ -1,66 +1,71 @@
 package fr.vco.codingame.contest.springchallenge2021.mcts
 
 import fr.vco.codingame.contest.springchallenge2021.*
-//import fr.vco.codingame.contest.springchallenge2021.PoolState
-//import fr.vco.codingame.contest.springchallenge2021.mcts.PoolState
 import kotlin.math.ln
-import kotlin.math.max
 import kotlin.math.sqrt
-import kotlin.random.Random
+
+var LOG_NEP = MutableList(10000) { ln(it.toFloat()) }
+
 
 class MctsNode(
     val parent: MctsNode?,
-    val state: State,
-    var action: Action? = null
-
+    var action: Action
 ) {
-
     var children: List<MctsNode> = emptyList()
-//    val actions by lazy { state.getAvailableActions() }
-    var win: Int = 0
+    var win: Float = 0f
     var visit: Int = 0
 
-    fun getRandomChild(): MctsNode {
-        return children[Random.nextInt(children.size)]
-    }
+    fun getRandomChild() = children.random()
 }
 
 object Mcts {
     var createdNodes = 0
-//    var maxExecutionTime = 0L
-    var executionTime=0L
+
+    var executionTime = 0L
     var totalSimulation = 0
     private val simulationState = State()
-    lateinit var rootNode : MctsNode
+    private val rootState = State()
+    lateinit var rootNode: MctsNode
+    lateinit var bestNode: MctsNode
 
     fun findNextMove(game: Game, timeout: Int = 90): Action {
-        val rootState = State().initFromGame(game)
+        rootState.loadFromGame(game)
         return findNextMove(rootState, timeout)
     }
 
-    fun findNextMove(state: State, timeout: Int = 90): Action {
+    private fun findNextMove(state: State, timeout: Int = 90): Action {
         val start = System.currentTimeMillis()
         val end = System.currentTimeMillis() + timeout
 
-        rootNode = MctsNode(null, state,WaitAction(ME))
+        rootNode = MctsNode(null, WaitAction(ME))
         createdNodes = 1
         totalSimulation = 0
-        while (System.currentTimeMillis() < end ) {
+        while (System.currentTimeMillis() < end) {
 
+            simulationState.loadFromState(rootState)
+
+            // 1 - Selection
             val promisingNode = selectPromisingNode(rootNode)
 
-            if (promisingNode.state.getStatus() == IN_PROGRESS) {
+            // 2 - Expansion
+            if (simulationState.getStatus() == IN_PROGRESS) {
                 expand(promisingNode)
             }
 
-            val nodeToExplore =
-                if (promisingNode.children.isNotEmpty()) promisingNode.getRandomChild() else promisingNode
-            val winner = simulateRandomGame(nodeToExplore)
+            val nodeToExplore = if (promisingNode.children.isNotEmpty()) {
+                val child = promisingNode.getRandomChild()
+                simulationState.play(child.action)
+                child
+            } else promisingNode
 
+            // 3 - Simulation
+            val winner = simulateRandomGame()
+
+            // 4 - BackPropagation
             backPropagation(nodeToExplore, winner)
         }
 
-//        if (timeout < 100) maxExecutionTime = max(maxExecutionTime, System.currentTimeMillis() - start)
+
         executionTime = System.currentTimeMillis() - start
         log("MCTS Execution Time : ${executionTime}")
         log("Total simulation : ${rootNode.visit}")
@@ -68,54 +73,49 @@ object Mcts {
         log("Total victory : ${rootNode.win}")
 
 
-        val bestNode = rootNode.children.maxByOrNull { it.visit }
-        return bestNode?.action
-         ?: WaitAction(ME)
-
+        bestNode = rootNode.children.maxByOrNull { it.visit } ?: rootNode
+        return bestNode.action
     }
 
-    fun summary() = "${rootNode.win}/${rootNode.visit} -- ${executionTime}ms"
+    fun summary() = "${bestNode.win} ${rootNode.visit} ${executionTime}ms"
 
     private fun selectPromisingNode(node: MctsNode): MctsNode {
         var bestNode = node
         while (bestNode.children.isNotEmpty()) {
-            val parentVisit = ln(bestNode.visit.toDouble())
+            val parentVisit = LOG_NEP.getOrElse(bestNode.visit) { ln(it.toFloat()) }
             bestNode = bestNode.children.maxByOrNull { uct(it, parentVisit) }!!
             //bestNode = bestNode.children.maxByOrNull { if (it.visit ==  0 ) Double.MAX_VALUE else it.win.toDouble() / bestNode.visit.toDouble() }!!
+            simulationState.play(bestNode.action)
         }
         return bestNode
     }
 
-    private fun uct(node: MctsNode, totalVisit: Double): Double {
-        if (node.visit == 0) return Double.MAX_VALUE
-        return node.win.toDouble() / node.visit.toDouble() + 1.41* sqrt(totalVisit / node.visit.toDouble())
+    private fun uct(node: MctsNode, totalVisit: Float): Float {
+        if (node.visit == 0) return Float.MAX_VALUE
+        return node.win / node.visit + sqrt(totalVisit / node.visit)
     }
 
-
     private fun expand(node: MctsNode) {
-
-        node.children = node.state.getAvailableActions().map {
-            MctsNode(node, node.state.getNextState(it), it)
-        }
+        node.children = simulationState.getAvailableActions().map { MctsNode(node, it) }
         createdNodes += node.children.size
-
     }
 
     private fun backPropagation(node: MctsNode, winner: Int) {
         var current: MctsNode? = node
+
         while (current != null) {
             current.visit++
-            if (winner == current.action!!.player) {
-                current.win++
+            current.win += when (winner) {
+                current.action.player -> 1f
+                DRAW -> 0.5f
+                else -> 0f
             }
             current = current.parent
         }
 
     }
 
-
-    fun simulateRandomGame(node: MctsNode): Int {
-        simulationState.initFromState(node.state)
+    fun simulateRandomGame(): Int {
         return simulationState.simulateRandomGame()
     }
 

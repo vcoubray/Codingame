@@ -15,7 +15,7 @@ class SeedAction(player: Int, val source: Int, val target: Int, cost: Int) : Act
 }
 
 class GrowAction(player: Int, val treeId: Int, val size: Int, cost: Int) : Action(player, cost) {
-    constructor (player: Int, tree: Tree, cost: Int = 0) : this(player, tree.cellIndex, tree.size, cost)
+    constructor (player: Int, tree: Tree, cost: Int) : this(player, tree.cellIndex, tree.size, cost)
 
     override fun toString() = "GROW $treeId"
 }

@@ -9,23 +9,3 @@ fun Trees.addTree(i: Int) = this or (1L shl i)
 fun Trees.removeTree(i: Int) = this and (1L shl i).inv()
 fun Trees.getIndexes(): List<Int> = (0 until BOARD_SIZE).filter{this[it] == 1L}
 
-
-//fun main(){
-//
-//    val trees : Trees = 500L
-//
-//    println(trees.print())
-//    println(trees[0])
-//
-//    println(trees.addTree(0))
-//    println(trees.removeTree(2).print())
-//    println(trees.print())
-//
-//
-//    val long = "10101010001000000000001000010100000".toLong(2)
-//    println(long.print())
-//    println(long.removeTree(32).print())
-//
-//
-//
-//}

@@ -1,6 +1,5 @@
-package fr.vco.codingame.contest.springchallenge2021.mcts
+package fr.vco.codingame.contest.springchallenge2021
 
-import fr.vco.codingame.contest.springchallenge2021.*
 import java.util.*
 
 

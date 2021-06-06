@@ -1,6 +1,5 @@
 package fr.vco.codingame.contest.springchallenge2021
 
-import fr.vco.codingame.contest.springchallenge2021.mcts.Game
 import fr.vco.codingame.contest.springchallenge2021.mcts.Mcts
 import java.util.*
 import kotlin.math.max
