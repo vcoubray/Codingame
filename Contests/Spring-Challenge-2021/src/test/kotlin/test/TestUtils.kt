@@ -13,13 +13,22 @@ fun simuAction(state: State, loop: Int = 1) {
     }.let { println("Normal Action - $loop iteration - elapsed time : $it ms") }
 }
 
+fun simuActionNew(state: State, loop: Int = 1) {
+    measureTimeMillis {
+        repeat(loop) {
+            state.getAvailableActionsNew()
+        }
+    }.let { println("New Action - $loop iteration - elapsed time : $it ms") }
+}
 
-fun simuActionOld(state: State, loop: Int = 1) {
+
+
+fun simuActionRollout(state: State, loop: Int = 1) {
     measureTimeMillis {
         repeat(loop) {
             state.getAvailableActionsForRollout()
         }
-    }.let { println("NEW Action - $loop iteration - elapsed time : $it ms") }
+    }.let { println("rollOut Action - $loop iteration - elapsed time : $it ms") }
 }
 
 

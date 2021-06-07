@@ -1,5 +1,6 @@
 package test
 
+import fr.vco.codingame.contest.springchallenge2021.IN_PROGRESS
 import fr.vco.codingame.contest.springchallenge2021.log
 import fr.vco.codingame.contest.springchallenge2021.mcts.State
 
@@ -10,7 +11,44 @@ fun main() {
 
 //    val stateBits = StateBits(game)
     val state = State().loadFromGame(game)
-    log (state.getAvailableActions())
+
+    log(state.getAvailableActions())
+    log(state.getAvailableActionsNew())
+//    val stateTmp = State().loadFromState(state).apply(::log)
+//    while (stateTmp.getStatus() == IN_PROGRESS) {
+//        val action = stateTmp.getAvailableActions().apply(::log).random().apply(::log)
+//        stateTmp.play(action)
+//        log(stateTmp)
+//        log("---------")
+//    }
+
+    simuAction(state, 1000)
+    simuAction(state, 1000)
+    simuAction(state, 1000)
+    simuAction(state, 1000)
+    simuAction(state, 1000)
+    simuAction(state, 1000)
+    simuAction(state, 1000)
+    simuAction(state, 1000)
+    simuAction(state, 1000)
+    simuAction(state, 1000)
+    simuActionNew(state, 1000)
+    simuActionNew(state, 1000)
+    simuActionNew(state, 1000)
+    simuActionNew(state, 1000)
+    simuActionNew(state, 1000)
+    simuActionNew(state, 1000)
+    simuActionNew(state, 1000)
+    simuActionNew(state, 1000)
+    simuActionRollout(state, 1000)
+    simuActionRollout(state, 1000)
+    simuActionRollout(state, 1000)
+    simuActionRollout(state, 1000)
+    simuActionRollout(state, 1000)
+    simuActionRollout(state, 1000)
+    simuActionRollout(state, 1000)
+    simuActionRollout(state, 1000)
+
 
 
 //    simuAction(state, 1000)
