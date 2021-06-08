@@ -8,9 +8,6 @@ import java.util.*
 
 fun log(message: Any?) = System.err.println(message.toString())
 
-
-
-
 fun readPossibleMoves(input: Scanner): List<String> {
     val numberOfPossibleMoves = input.nextInt()
     if (input.hasNextLine()) {

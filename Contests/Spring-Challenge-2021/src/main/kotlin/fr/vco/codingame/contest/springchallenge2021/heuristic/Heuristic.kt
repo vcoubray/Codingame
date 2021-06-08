@@ -9,23 +9,17 @@ class Heuristic(
     val nutrients: Int,
     val sun: Int,
     val score: Int,
-    val oppSun: Int,
-    val oppScore: Int,
-    val oppIsWaiting: Boolean,
     val trees: List<Tree>
 ) {
     constructor(game: Game) : this(
-        day = game.day, // the game lasts 24 days: 0-23
-        nutrients = game.nutrients, // the base score you gain from the next COMPLETE action
-        sun = game.sun, // your sun points
-        score = game.score, // your current score
-        oppSun = game.oppSun, // opponent's sun points
-        oppScore = game.oppScore, // opponent's score
-        oppIsWaiting = game.oppIsWaiting, // whether your opponent is asleep until the next day
+        day = game.day,
+        nutrients = game.nutrients,
+        sun = game.sun,
+        score = game.score,
         trees = game.realTrees
     )
 
-    val treesIndexes = trees.associateBy { it.cellIndex } //map { it.cellIndex }
+    val treesIndexes = trees.associateBy { it.cellIndex }
     val myTrees = trees.filter { it.owner == ME }
     val rentability = Board.getRentabilityBoard(myTrees)
     val globalRentability = Board.getRentabilityBoard(myTrees)
@@ -82,7 +76,6 @@ class Heuristic(
                 )
             )?.let{return it}
         }
-
 
         val shouldComplete = when {
             availableGreatTrees.isEmpty() -> false
