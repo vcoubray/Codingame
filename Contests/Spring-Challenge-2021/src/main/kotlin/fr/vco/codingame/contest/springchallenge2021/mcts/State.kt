@@ -1,6 +1,7 @@
 package fr.vco.codingame.contest.springchallenge2021.mcts
 
 import fr.vco.codingame.contest.springchallenge2021.*
+import fr.vco.codingame.contest.springchallenge2021.game.*
 
 
 data class State(
@@ -82,7 +83,7 @@ data class State(
             trees.filter { it.owner == player }.flatMap { Board[it.cellIndex].neighIndex }
         } else emptyList()
 
-        val remainDays = MAX_DAY - day-1
+        val remainDays = MAX_DAY - day - 1
 
         trees.forEach forEachTree@{ tree ->
             if (tree.size == NONE) return@forEachTree
@@ -242,7 +243,6 @@ data class State(
     fun getAvailableActionsForRollout(): List<Action> {
         if (players[player].isWaiting) return listOf(WaitAction(player))
 
-
         val canComplete = day >= 12 && players[player].canPay(COMPLETE_ACTION)
             && (players[player].costs[COMPLETE_ACTION] > 4 || day >= 21)
         val canGrow = day < 19
@@ -268,9 +268,8 @@ data class State(
 
     fun simulateRandomGame(): Int {
         while (getStatus() == IN_PROGRESS) {
-            val action = getAvailableActions().random()
-//            val action = actions
 
+            val action = getAvailableActions().random()
             when (action) {
                 is CompleteAction -> complete(action)
                 is GrowAction -> grow(action)

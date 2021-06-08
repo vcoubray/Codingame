@@ -1,43 +1,31 @@
 package fr.vco.codingame.contest.springchallenge2021.mcts
 
 import fr.vco.codingame.contest.springchallenge2021.*
+import fr.vco.codingame.contest.springchallenge2021.game.Action
+import fr.vco.codingame.contest.springchallenge2021.game.Game
+import fr.vco.codingame.contest.springchallenge2021.game.WaitAction
 import kotlin.math.ln
 import kotlin.math.sqrt
 
-var LOG_NEP = MutableList(10000) { ln(it.toFloat()) }
-
-
-class MctsNode(
-    val parent: MctsNode?,
-    var action: Action
-) {
-    var children: List<MctsNode> = emptyList()
-    var win: Float = 0f
-    var visit: Int = 0
-
-    fun getRandomChild() = children.random()
-}
-
 object Mcts {
-    var createdNodes = 0
 
+    val LOG_NEP = MutableList(10000) { ln(it.toFloat()) }
+
+    var createdNodes = 0
     var executionTime = 0L
     var totalSimulation = 0
+
     private val simulationState = State()
     private val rootState = State()
-    lateinit var rootNode: MctsNode
-    lateinit var bestNode: MctsNode
+    lateinit var rootNode: Node
+    lateinit var bestNode: Node
 
     fun findNextMove(game: Game, timeout: Int = 90): Action {
-        rootState.loadFromGame(game)
-        return findNextMove(rootState, timeout)
-    }
-
-    private fun findNextMove(state: State, timeout: Int = 90): Action {
         val start = System.currentTimeMillis()
         val end = System.currentTimeMillis() + timeout
+        rootState.loadFromGame(game)
 
-        rootNode = MctsNode(null, WaitAction(ME))
+        rootNode = Node(null, WaitAction(ME))
         createdNodes = 1
         totalSimulation = 0
         while (System.currentTimeMillis() < end) {
@@ -72,14 +60,13 @@ object Mcts {
         log("Total Node created : $createdNodes")
         log("Total victory : ${rootNode.win}")
 
-
         bestNode = rootNode.children.maxByOrNull { it.visit } ?: rootNode
         return bestNode.action
     }
 
-    fun summary() = "${bestNode.win} ${rootNode.visit} ${executionTime}ms"
+    fun summary() = "${bestNode.win/bestNode.visit} ${rootNode.visit} ${executionTime}ms"
 
-    private fun selectPromisingNode(node: MctsNode): MctsNode {
+    private fun selectPromisingNode(node: Node): Node {
         var bestNode = node
         while (bestNode.children.isNotEmpty()) {
             val parentVisit = LOG_NEP.getOrElse(bestNode.visit) { ln(it.toFloat()) }
@@ -90,18 +77,18 @@ object Mcts {
         return bestNode
     }
 
-    private fun uct(node: MctsNode, totalVisit: Float): Float {
+    private fun uct(node: Node, totalVisit: Float): Float {
         if (node.visit == 0) return Float.MAX_VALUE
         return node.win / node.visit + sqrt(totalVisit / node.visit)
     }
 
-    private fun expand(node: MctsNode) {
-        node.children = simulationState.getAvailableActions().map { MctsNode(node, it) }
+    private fun expand(node: Node) {
+        node.children = simulationState.getAvailableActions().map { Node(node, it) }
         createdNodes += node.children.size
     }
 
-    private fun backPropagation(node: MctsNode, winner: Int) {
-        var current: MctsNode? = node
+    private fun backPropagation(node: Node, winner: Int) {
+        var current: Node? = node
 
         while (current != null) {
             current.visit++

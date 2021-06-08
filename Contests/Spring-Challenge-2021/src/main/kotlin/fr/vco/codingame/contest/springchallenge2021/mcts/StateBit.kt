@@ -1,6 +1,7 @@
 package fr.vco.codingame.contest.springchallenge2021.mcts
 
 import fr.vco.codingame.contest.springchallenge2021.*
+import fr.vco.codingame.contest.springchallenge2021.game.*
 
 
 data class PlayerBit(
@@ -9,7 +10,6 @@ data class PlayerBit(
     var isWaiting: Boolean = false,
     val trees: LongArray = LongArray(4) { 0L },
     var isDormant: Trees = 0
-
 ) {
 
     constructor(score: Int, sun: Int, isWaiting: Boolean, trees: List<Tree>) : this(
@@ -41,7 +41,6 @@ data class PlayerBit(
             it.score = score + nutrients + BONUS_RICHNESS[Board[action.treeId].richness]
             it.trees[GREAT] = trees[GREAT].removeTree(action.treeId)
         }
-
     }
 
     fun grow(action: GrowAction) = apply {
@@ -342,6 +341,4 @@ data class StateBits(
             result = 31 * result + players.contentHashCode()
             return result
         }
-
-
 }

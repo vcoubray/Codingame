@@ -1,8 +1,10 @@
-package fr.vco.codingame.contest.springchallenge2021
+package fr.vco.codingame.contest.springchallenge2021.game
 
+import fr.vco.codingame.contest.springchallenge2021.INITIAL_NUTRIENTS
+import fr.vco.codingame.contest.springchallenge2021.ME
+import fr.vco.codingame.contest.springchallenge2021.NONE
+import fr.vco.codingame.contest.springchallenge2021.OPP
 import java.util.*
-
-
 
 class Game {
     var day: Int = 0
@@ -15,8 +17,6 @@ class Game {
     var trees: List<Tree> = List(BOARD_SIZE) { Tree(it) }
 
     var turn = 0
-
-
     private var startTime = System.currentTimeMillis()
 
     lateinit var realTrees: List<Tree>
@@ -49,7 +49,4 @@ class Game {
     }
 
     fun currentExecutionTime() = System.currentTimeMillis() - startTime
-
 }
-
-

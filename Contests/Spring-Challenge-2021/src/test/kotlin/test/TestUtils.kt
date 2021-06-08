@@ -1,6 +1,7 @@
 package test
 
 import fr.vco.codingame.contest.springchallenge2021.*
+import fr.vco.codingame.contest.springchallenge2021.game.*
 import fr.vco.codingame.contest.springchallenge2021.mcts.*
 import kotlin.system.measureTimeMillis
 

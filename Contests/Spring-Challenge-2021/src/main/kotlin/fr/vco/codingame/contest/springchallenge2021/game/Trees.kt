@@ -1,4 +1,4 @@
-package fr.vco.codingame.contest.springchallenge2021
+package fr.vco.codingame.contest.springchallenge2021.game
 
 typealias Trees = Long
 

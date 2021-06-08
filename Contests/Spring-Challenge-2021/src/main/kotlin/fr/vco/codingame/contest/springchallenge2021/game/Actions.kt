@@ -1,4 +1,6 @@
-package fr.vco.codingame.contest.springchallenge2021
+package fr.vco.codingame.contest.springchallenge2021.game
+
+import fr.vco.codingame.contest.springchallenge2021.COMPLETE_COST
 
 sealed class Action(val player: Int, val cost: Int) {
     fun print(message: String = "") = println("$this $message")
