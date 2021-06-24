@@ -9,4 +9,4 @@ data class Tree(
     var isDormant: Boolean = false
 )
 
-fun List<Tree>.getBits() = this.fold(0L) { acc, tree -> acc.addTree(tree.cellIndex) }
+

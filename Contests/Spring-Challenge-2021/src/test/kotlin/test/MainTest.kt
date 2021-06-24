@@ -9,7 +9,7 @@ fun main() {
 
     val game = initTestGame()
 
-//    val stateBits = StateBits(game)
+
     val state = State().loadFromGame(game)
 
     log(state.getAvailableActions())
@@ -51,29 +51,6 @@ fun main() {
 
 
 
-//    simuAction(state, 1000)
-//    simuAction(state, 1000)
-//    simuAction(state, 1000)
-//    simuAction(state, 1000)
-//    simuAction(state, 1000)
-//    simuAction(state, 1000)
-//    simuAction(state, 1000)
-//    simuAction(state, 1000)
-//    simuAction(state, 1000)
-//    simuAction(state, 1000)
-//    simuAction(state2, 1000)
-//    simuAction(state2, 1000)
-//    simuAction(state2, 1000)
-//    simuAction(state2, 1000)
-//    simuAction(state2, 1000)
-//    simuAction(state2, 1000)
-//    simuActionNew(state2, 1000)
-//    simuActionNew(state2, 1000)
-//    simuActionNew(state2, 1000)
-//    simuActionNew(state2, 1000)
-//    simuActionNew(state2, 1000)
-
-
 
 
 //    measureTimeMillis {
@@ -93,48 +70,6 @@ fun main() {
 //    }
 //
 //
-//    simuAction(stateBits, 1000)
-//    simuAction(stateBits, 1000)
-//    simuAction(stateBits, 1000)
-//    simuAction(stateBits, 1000)
-//    simuAction(state, 1000)
-//    simuAction(state, 1000)
-//    simuAction(state, 1000)
-//    simuAction(state, 1000)
-//    simuAction(state, 1000)
-//    simuAction(state, 1000)
-//    simuAction(state, 1000)
-//    simuAction(state, 1000)
-//    simuAction(state, 1000)
-//    simuAction(state, 1000)
-//    simuActionOld(state, 1000)
-//    simuActionOld(state, 1000)
-//    simuActionOld(state, 1000)
-//    simuActionOld(state, 1000)
-//    simuActionOld(state, 1000)
-//    simuActionOld(state, 1000)
-//    simuActionOld(state, 1000)
-//    simuActionOld(state, 1000)
-//    simuActionOld(state, 1000)
-//    simuActionOld(state, 1000)
-//
-//
-//
-//    simu(state, 500)
-//    simu(state, 500)
-//    simu(state, 500)
-//    simu(state, 500)
-//    simu(state, 500)
-//    simu(state, 500)
-//    simu(state, 500)
-//    simu(state, 500)
-//
-//    simuRandom(state, 1)
-//    simuRandom(state, 1)
-//    simuRandom(state, 1)
-//    simuRandom(state, 1)
-//    simuRandom(state, 1)
-
 
 }
 
