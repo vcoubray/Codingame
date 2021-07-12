@@ -1,5 +1,7 @@
+include 'Puzzles:DontPanic-episode2'
 include 'Puzzles:VoxCodei-Episode1'
 include 'Puzzles:Winamax'
 include 'Golf:Thor'
 include 'Contests:Code4Life'
 include 'Contests:Spring-Challenge-2021'
+

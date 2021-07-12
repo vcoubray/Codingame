@@ -9,3 +9,4 @@ repositories {
 subprojects {
     task codingame(type: Codingame)
 }
+
