@@ -18,7 +18,7 @@ abstract class State(game: Game) {
                 val cost = it.cost
                 availableMolecules.contains(cost) && (bot.storage + cost).isValid()
             }
-            .maxWith(compareBy({ it.health }, { -it.cost.sum() }))
+            .maxWithOrNull(compareBy({ it.health }, { -it.cost.sum() }))
     }
 }
 
@@ -91,7 +91,7 @@ class MoleculesState(game: Game) : State(game) {
         log("Needed : $needed")
         val action = moleculesScore
             .filter{(_,score) -> score> 0}
-            .maxWith (compareBy(
+            .maxWithOrNull (compareBy(
                 { (_,score) -> score },
                 {(m,_)-> needed[m] }
             ))
