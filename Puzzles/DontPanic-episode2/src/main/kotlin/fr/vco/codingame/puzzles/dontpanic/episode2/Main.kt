@@ -2,13 +2,13 @@ package fr.vco.codingame.puzzles.dontpanic.episode2
 
 import java.util.*
 
-enum class Action(val play: String) {
-    BLOCK("BLOCK"), ELEVATOR("ELEVATOR"), WAIT("WAIT"), WAIT_ASCENCEUR("ASCENCEUR")
-}
-
 const val IN_PROGRESS = 0
 const val WIN = 1
 const val LOOSE = 2
+
+enum class Action {
+    BLOCK, ELEVATOR, WAIT, WAIT_ELEVATOR
+}
 
 object Game {
     var nbFloors: Int = 0
@@ -22,6 +22,35 @@ object Game {
     var elevators = List(nbFloors) { mutableMapOf<Int, Boolean>() }
 }
 
+class BFS (h : Int, w: Int, nbElevators : Int) {
+    private val visited = Array(2) { Array(nbElevators + 1) { Array(h) { IntArray(w) { 0 } } } }
+
+    private fun isVisited(state: State): Boolean {
+        val dirIndex = if (state.direction == -1) 0 else 1
+        return if (visited[dirIndex][state.nbElevators][state.cloneFloor][state.clonePos] < state.turnLeft) {
+            visited[dirIndex][state.nbElevators][state.cloneFloor][state.clonePos] = state.turnLeft
+            false
+        } else true
+    }
+
+    fun proceed(root: State): State {
+        val toVisit = LinkedList<State>()
+        toVisit.add(root)
+        while (toVisit.isNotEmpty()) {
+            val current = toVisit.pop()
+            val actions = current.availableAction()
+            actions.forEach {
+                val child = current.copy()
+                child.nextTurn(it)
+                child.parent = current
+                val status = child.status()
+                if (status == WIN) return child
+                if (status == IN_PROGRESS && !isVisited(child)) toVisit.addLast(child)
+            }
+        }
+        return root
+    }
+}
 
 data class State(
     var turnLeft: Int,
@@ -31,10 +60,11 @@ data class State(
     var direction: Int,
     var clones: Int
 ) {
-    var actions = LinkedList<Action>()
-//    var positions = LinkedList<Pair<Int, Int>>()
+    var parent: State? = null
+    var action: Action? = null
 
     fun nextTurn(action: Action) {
+        this.action = action
         when (action) {
             Action.BLOCK -> {
                 direction = -direction
@@ -45,7 +75,7 @@ data class State(
             Action.WAIT -> {
                 clonePos += direction
             }
-            Action.WAIT_ASCENCEUR -> {
+            Action.WAIT_ELEVATOR -> {
                 cloneFloor++
             }
             Action.ELEVATOR -> {
@@ -58,46 +88,21 @@ data class State(
         turnLeft--
     }
 
-    fun undoTurn(action: Action) {
-        when (action) {
-            Action.BLOCK -> {
-                direction = -direction
-                turnLeft += 3
-                clonePos += direction
-                clones++
-            }
-            Action.WAIT -> {
-                clonePos -= direction
-            }
-            Action.WAIT_ASCENCEUR -> {
-                cloneFloor--
-            }
-            Action.ELEVATOR -> {
-                cloneFloor--
-                nbElevators++
-                turnLeft += 3
-                clones++
-            }
-        }
-        turnLeft++
-    }
-
     fun availableAction(): List<Action> {
         val actions = mutableListOf<Action>()
         if (nbElevators > 0 && Game.elevators[cloneFloor][clonePos] != true) actions.add(Action.ELEVATOR)
 
-        val lastAction = this.actions.lastOrNull() ?: Action.ELEVATOR
-        if (lastAction == Action.WAIT_ASCENCEUR || lastAction == Action.ELEVATOR) actions.add(Action.BLOCK)
+        val lastAction = this.action ?: Action.ELEVATOR
+        if (lastAction == Action.WAIT_ELEVATOR || lastAction == Action.ELEVATOR) actions.add(Action.BLOCK)
 
-        if ((Game.elevators[cloneFloor][clonePos] == true)) actions.add(Action.WAIT_ASCENCEUR)
+        if ((Game.elevators[cloneFloor][clonePos] == true)) actions.add(Action.WAIT_ELEVATOR)
         else actions.add(Action.WAIT)
         return actions
     }
 
-
     fun status(): Int {
         return when {
-            turnLeft < 0 -> LOOSE
+            turnLeft <= 0 -> LOOSE
             cloneFloor > Game.exitFloor -> LOOSE
             clonePos !in (0 until Game.width) -> LOOSE
             cloneFloor == Game.exitFloor && clonePos == Game.exitPos -> WIN
@@ -105,28 +110,21 @@ data class State(
         }
     }
 
-    fun findActions(): Boolean {
-
-        return when (status()) {
-            WIN -> true
-            LOOSE -> false
-            else -> {
-                availableAction().forEach {
-                    nextTurn(it)
-                    actions.addLast(it)
-//                    positions.addLast(cloneFloor to clonePos)
-                    if (findActions()) return true
-                    undoTurn(it)
-                    actions.removeLast()
-//                    positions.removeLast()
-                }
-                false
+    fun getActions(): List<Action> {
+        val actions = LinkedList<Action>()
+        actions.add(Action.WAIT)
+        var current = this
+        while (current.parent != null && current.action != null) {
+            if (current.action == Action.ELEVATOR || current.action == Action.BLOCK) {
+                repeat(3) { actions.addFirst(Action.WAIT) }
             }
+            actions.addFirst(current.action)
+
+            current = current.parent!!
         }
+        return actions
     }
-
 }
-
 
 fun main() {
     val input = Scanner(System.`in`)
@@ -148,7 +146,7 @@ fun main() {
     var clonePos = input.nextInt() // position of the leading clone on its floor
     var direction = input.next() // direction of the leading clone: LEFT or RIGHT
 
-    val state = State(
+    val root = State(
         Game.nbRounds,
         cloneFloor,
         clonePos,
@@ -157,29 +155,16 @@ fun main() {
         Game.nbTotalClones
     )
 
-    state.findActions()
-  //  System.err.println(state.actions)
-//    val positions = state.positions.toArray()
-    state.actions.forEach {
+    val bfs = BFS(Game.nbFloors, Game.width, Game.nbAdditionalElevators)
+    val actions = bfs.proceed(root).getActions()
+    actions.forEach{
         when (it) {
-            Action.WAIT, Action.WAIT_ASCENCEUR -> println("WAIT")
-            else -> {
-                println(it)
-                repeat(3) {
-                    cloneFloor = input.nextInt() // floor of the leading clone
-                    clonePos = input.nextInt() // position of the leading clone on its floor
-                    direction = input.next()
-                    println("WAIT")
-
-                }
-            }
+            Action.WAIT_ELEVATOR -> println("WAIT")
+            else -> println(it)
         }
-        cloneFloor = input.nextInt() // floor of the leading clone
-        clonePos = input.nextInt() // position of the leading clone on its floor
-        direction = input.next() // direction of the leading clone: LEFT or RIGHT
-
-//        System.err.println(positions[i])
-//        System.err.println("$cloneFloor, $clonePos")
+        // Read Input to avoid Warning
+        cloneFloor = input.nextInt()
+        clonePos = input.nextInt()
+        direction = input.next()
     }
-    println("WAIT")
 }
