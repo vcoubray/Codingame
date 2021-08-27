@@ -1,12 +1,12 @@
 rootProject.name = 'Codingame'
 
 include 'Puzzles:DontPanic-episode2'
-include 'Puzzles:VoxCodei-Episode1'
+include 'Puzzles:Roller-Coaster'
 include 'Puzzles:Super-Calculateur'
+include 'Puzzles:VoxCodei-Episode1'
 include 'Puzzles:Winamax'
 include 'Golf:Thor'
 include 'Contests:Code4Life'
 include 'Contests:Spring-Challenge-2021'
-include 'Super-Calculateur'
 
 
