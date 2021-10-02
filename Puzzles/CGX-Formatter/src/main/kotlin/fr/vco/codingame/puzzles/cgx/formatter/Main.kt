@@ -41,5 +41,4 @@ fun main() {
     println(formattedContent)
 }
 
-fun whitespaces(count: Int) = List(count) { " " }.joinToString("")
-fun newLine(indent: Int) = "\n${whitespaces(indent * 4)}"
+fun newLine(indent: Int) = "\n" + "".padEnd(indent * 4,' ')
