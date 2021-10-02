@@ -22,17 +22,17 @@ fun main() {
     var firstLine = true
     val formattedContent = trimmedContent.map {
 
-        if (!isString && it == ')') indent -= 4
+        if (!isString && it == ')') indent--
 
         val before = when {
-            isString -> ""
+            isString ||firstLine -> ""
             it != ';' && shouldNewLine -> newLine(indent)
-            it in "()" && !firstLine -> newLine(indent)
+            it in "()" -> newLine(indent)
             else -> ""
         }
         firstLine = false
 
-        if (!isString && it == '(') indent += 4
+        if (!isString && it == '(') indent++
         if (it == '\'') isString = !isString
         shouldNewLine = it in "();"
 
@@ -42,4 +42,4 @@ fun main() {
 }
 
 fun whitespaces(count: Int) = List(count) { " " }.joinToString("")
-fun newLine(indent: Int) = "\n${whitespaces(indent)}"
+fun newLine(indent: Int) = "\n${whitespaces(indent * 4)}"
