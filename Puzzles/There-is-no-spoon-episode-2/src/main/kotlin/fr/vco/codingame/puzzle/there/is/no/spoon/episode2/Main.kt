@@ -26,16 +26,16 @@ fun main() {
                 for (i in x+1 until width) {
                     val neighbor = board[y][i]
                     if (neighbor != null) {
-                        it.neighbours.add(neighbor)
-                        neighbor.neighbours.add(it)
+                        it.neighbours[neighbor] = 0
+                        neighbor.neighbours[it] = 0
                         break
                     }
                 }
                 for (i in y+1 until height) {
                     val neighbor = board[i][x]
                     if (neighbor != null) {
-                        it.neighbours.add(neighbor)
-                        neighbor.neighbours.add(it)
+                        it.neighbours[neighbor] = 0
+                        neighbor.neighbours[it] = 0
                         break
                     }
                 }
@@ -45,28 +45,34 @@ fun main() {
 
     var currentBoard = board.flatten().filterNotNull()
 
-    while (currentBoard.any { it.linkCount > 0 }) {
-        currentBoard.maxByOrNull { it.linkCount/it.neighbours.size.toFloat() }?.getAction()?.let { action ->
-            action.node.linkCount -= action.links
-            action.neighbor.linkCount -= action.links
-            action.node.neighbours.remove(action.neighbor)
-            action.neighbor.neighbours.remove(action.node)
-            currentBoard = currentBoard.filter { it.linkCount > 0 }
-            println(action)
-        }
-    }
+    val totalActions = mutableListOf<Action>()
+    val actions = mutableListOf<Action>()
+    do  {
+         actions.clear()
+         currentBoard.forEach { node ->
+             val n = node.linkCount
+             val validNeighbours = node.neighbours.filter{(k,v) -> v <2}
+             val s = validNeighbours.keys.sumOf{ min(2, it.linkCount) }
+             validNeighbours.forEach{ (neigbhor, _) ->
+                 val link = n - s + min(2, neigbhor.linkCount)
+                 if (link > 0) {
+                     node.linkCount -= link
+                     neigbhor.linkCount -= link
+                     node.neighbours[neigbhor] = node.neighbours[neigbhor]!! + link
+                     neigbhor.neighbours[node] = neigbhor.neighbours[node]!! + link
+                     actions.add(Action(node, neigbhor, link))
+
+                 }
+             }
+         }
+         totalActions.addAll(actions)
+    }while(actions.isNotEmpty())
 
 
+    totalActions.forEach(::println)
+    println("No more obvious links")
 
 
-
-//    board.flatten().filterNotNull().forEach {
-//        System.err.println("${it.x} ${it.y}")
-//        it.neighbours.forEach { n ->
-//            System.err.println("${n.x} ${n.y}")
-//        }
-//        System.err.println("----")
-//    }
 
     // Two coordinates and one integer: a node, one of its neighbors, the number of links connecting them.
 //    println("0 0 2 0 1")
@@ -76,16 +82,15 @@ class Node(
     val x: Int,
     val y: Int,
     var linkCount: Int,
-    val neighbours: MutableList<Node> = mutableListOf()
+    val neighbours: MutableMap<Node,Int> = mutableMapOf()
 ) {
-
-    fun getAction() : Action? {
-         return neighbours.firstOrNull{it.linkCount > 0 }?.let{ neighbor->
-             val links = min(2,min(linkCount, neighbor.linkCount))
-             return Action(this, neighbor, links)
-        }
-
-    }
+//    val links = neighbours.associateWith { 0 }.toMutableMap()
+//    fun getAction() : Action? {
+//         return neighbours.firstOrNull{it.linkCount > 0 }?.let{ neighbor->
+//             val links = min(2,min(linkCount, neighbor.linkCount))
+//             return Action(this, neighbor, links)
+//        }
+//    }
 
 //    override fun equals(other: Any?) = other is Node && other.x == x && other.y == y
 //
