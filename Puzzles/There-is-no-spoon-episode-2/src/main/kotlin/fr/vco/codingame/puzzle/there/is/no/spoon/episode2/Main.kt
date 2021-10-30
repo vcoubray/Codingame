@@ -1,107 +1,153 @@
 package fr.vco.codingame.puzzle.there.`is`.no.spoon.episode2
 
 import java.util.*
+import kotlin.math.max
 import kotlin.math.min
 
 
 fun main() {
     val input = Scanner(System.`in`)
-    val width = input.nextInt() // the number of cells on the X axis
-    val height = input.nextInt() // the number of cells on the Y axis
-    if (input.hasNextLine()) {
-        input.nextLine()
-    }
 
-    val board = List(height) { y ->
-        input.nextLine().mapIndexed { x, cell ->
-            cell.takeIf { it != '.' }?.let { Node(x, y, cell.digitToInt()) }
+    Board.init(input)
+    val state = Board.initialState()
+    val links = state.getMandatoryLink()
+
+    links.forEach(::println)
+    println("No more obvious links")
+
+}
+
+data class Node(
+    val index: Int,
+    val x: Int,
+    val y: Int,
+    var maxLinks: Int,
+    val neighbours: MutableList<Int> = mutableListOf(),
+)
+
+class Link(
+    val node: Node,
+    val neighbor: Node,
+    val count: Int
+) {
+    override fun toString() = "${node.x} ${node.y} ${neighbor.x} ${neighbor.y} $count"
+
+    fun isHorizontal() = node.y == neighbor.y
+    fun isParallel(link: Link) = isHorizontal() == link.isHorizontal()
+
+    fun isCrossing(link: Link): Boolean {
+
+        if (isParallel(link)) return false
+
+        return when {
+            isParallel(link) -> false
+            isHorizontal() ->  inRange(link){it.x} && link.inRange(this){it.y}
+            else -> inRange(link){it.y} && link.inRange(this){it.x}
         }
     }
 
-    System.err.println(board.joinToString("\n") { it.joinToString("") { n -> n?.linkCount?.toString() ?: "." } })
+    fun inRange(link: Link, coord: ( Node )-> Int) : Boolean {
+        val range = (min(coord(node),coord(neighbor)) +1 until max(coord(node),coord(neighbor)))
+        return coord(link.node) in range || coord(link.neighbor) in range
+    }
 
-    board.forEachIndexed { y, line ->
-        line.forEachIndexed { x, node ->
-            node?.let {
-                for (i in x+1 until width) {
-                    val neighbor = board[y][i]
-                    if (neighbor != null) {
-                        it.neighbours[neighbor] = 0
-                        neighbor.neighbours[it] = 0
-                        break
+}
+
+object Board {
+    lateinit var nodes: List<Node>
+
+    operator fun get(index: Int) = nodes[index]
+    fun init(input: Scanner) {
+        val width = input.nextInt() // the number of cells on the X axis
+        val height = input.nextInt() // the number of cells on the Y axis
+        if (input.hasNextLine()) {
+            input.nextLine()
+        }
+        var nodeIndex = 0
+        val board = List(height) { y ->
+            input.nextLine().mapIndexed { x, cell ->
+                cell.takeIf { it != '.' }?.let { Node(nodeIndex++, x, y, cell.digitToInt()) }
+            }
+        }
+        nodes = board.flatten().filterNotNull()
+        nodes.forEach(System.err::println)
+
+        System.err.println(board.joinToString("\n") { it.joinToString("") { n -> n?.maxLinks?.toString() ?: "." } })
+
+        board.forEachIndexed { y, line ->
+            line.forEachIndexed { x, node ->
+                node?.let {
+                    for (i in x + 1 until width) {
+                        val neighbor = board[y][i]
+                        if (neighbor != null) {
+                            it.neighbours.add(neighbor.index)
+                            neighbor.neighbours.add(it.index)
+                            break
+                        }
                     }
-                }
-                for (i in y+1 until height) {
-                    val neighbor = board[i][x]
-                    if (neighbor != null) {
-                        it.neighbours[neighbor] = 0
-                        neighbor.neighbours[it] = 0
-                        break
+                    for (i in y + 1 until height) {
+                        val neighbor = board[i][x]
+                        if (neighbor != null) {
+                            it.neighbours.add(neighbor.index)
+                            neighbor.neighbours.add(it.index)
+                            break
+                        }
                     }
                 }
             }
         }
+
     }
 
-    var currentBoard = board.flatten().filterNotNull()
+    fun initialState(): State {
+        return State(nodes.map { StateNode(it.index, it.neighbours.associateWith { 0 }.toMutableMap()) }, emptyList())
+    }
 
-    val totalActions = mutableListOf<Action>()
-    val actions = mutableListOf<Action>()
-    do  {
-         actions.clear()
-         currentBoard.forEach { node ->
-             val n = node.linkCount
-             val validNeighbours = node.neighbours.filter{(k,v) -> v <2}
-             val s = validNeighbours.keys.sumOf{ min(2, it.linkCount) }
-             validNeighbours.forEach{ (neigbhor, _) ->
-                 val link = n - s + min(2, neigbhor.linkCount)
-                 if (link > 0) {
-                     node.linkCount -= link
-                     neigbhor.linkCount -= link
-                     node.neighbours[neigbhor] = node.neighbours[neigbhor]!! + link
-                     neigbhor.neighbours[node] = neigbhor.neighbours[node]!! + link
-                     actions.add(Action(node, neigbhor, link))
-
-                 }
-             }
-         }
-         totalActions.addAll(actions)
-    }while(actions.isNotEmpty())
-
-
-    totalActions.forEach(::println)
-    println("No more obvious links")
-
-
-
-    // Two coordinates and one integer: a node, one of its neighbors, the number of links connecting them.
-//    println("0 0 2 0 1")
 }
 
-class Node(
-    val x: Int,
-    val y: Int,
-    var linkCount: Int,
-    val neighbours: MutableMap<Node,Int> = mutableMapOf()
-) {
-//    val links = neighbours.associateWith { 0 }.toMutableMap()
-//    fun getAction() : Action? {
-//         return neighbours.firstOrNull{it.linkCount > 0 }?.let{ neighbor->
-//             val links = min(2,min(linkCount, neighbor.linkCount))
-//             return Action(this, neighbor, links)
-//        }
-//    }
+data class StateNode(val index: Int, val neighbours: MutableMap<Int, Int>) {
+    fun removeCrossingWith(link: Link) {
+        neighbours.keys
+            .filter { link.isCrossing(Link(Board[it], Board[index], 0)) }
+            .forEach(neighbours::remove)
 
-//    override fun equals(other: Any?) = other is Node && other.x == x && other.y == y
-//
-//    override fun hashCode() = x.hashCode() * 31 + y.hashCode()
+    }
 }
 
-class Action(
-    val node : Node,
-    val neighbor : Node,
-    val links: Int
+
+data class State(
+    val nodes: List<StateNode>,
+    val links: List<Link>
+
 ) {
 
-    override fun toString() = "${node.x} ${node.y} ${neighbor.x} ${neighbor.y} $links"
+    fun getMandatoryLink(): List<Link> {
+        val mandatoryLinks = mutableListOf<Link>()
+        val actions = mutableListOf<Link>()
+        do {
+            actions.clear()
+            nodes.forEach { stateNode ->
+                val node = Board[stateNode.index]
+                val n = node.maxLinks
+                val validNeighbours = stateNode.neighbours.filter { (_, v) -> v < 2 }
+                val s = validNeighbours.keys.sumOf { min(2, Board[it].maxLinks) }
+                validNeighbours.forEach { (neighbor, _) ->
+                    val link = n - s + min(2, Board[neighbor].maxLinks)
+                    if (link > 0) {
+                        node.maxLinks -= link
+                        Board[neighbor].maxLinks -= link
+                        stateNode.neighbours[neighbor] = stateNode.neighbours[neighbor]!! + link
+                        nodes[neighbor].neighbours[stateNode.index] =
+                            nodes[neighbor].neighbours[stateNode.index]!! + link
+                        val action = Link(node, Board[neighbor], link)
+                        actions.add(action)
+                    }
+                }
+            }
+            mandatoryLinks.addAll(actions)
+            actions.forEach{action -> nodes.forEach{it.removeCrossingWith(action)}}
+        } while (actions.isNotEmpty())
+        return mandatoryLinks
+    }
+
 }
