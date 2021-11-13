@@ -10,39 +10,29 @@ fun main() {
 
     Board.init(input)
     val state = Board.initialState()
-
-    val start = System.currentTimeMillis()
-    state.getMandatoryLink()
+    state.addMandatoryLink()
 
     val finalState = findFinalState(state)
     if (finalState == null) System.err.println("No Solution found")
     finalState?.links?.forEach(::println)
-
-
-    System.err.println("terminated in ${System.currentTimeMillis() - start}ms")
-
 }
 
 fun findFinalState(state: State): State? {
     if (state.isFinish()) return state
 
-    val actions = state.getActions()
-    actions.forEach { action ->
-        val nextState = state.copy().apply {
-            play(action)
-            getMandatoryLink()
-        }
-        if (nextState.isValid(action.nodeId1)) {
+    val links = state.getPossibleLinks()
+    links.forEach { link ->
+        val nextState = state.copy().apply { play(link) }
+        if (nextState.isValid(link)) {
             val finalState = findFinalState(nextState)
             if (finalState != null) return finalState
         }
     }
-
     return null
 }
 
 data class Node(
-    val index: Int,
+    val id: Int,
     val x: Int,
     val y: Int,
     var maxLinks: Int,
@@ -56,13 +46,10 @@ data class Link(
 ) {
     override fun toString() = "${Board[nodeId1].x} ${Board[nodeId1].y} ${Board[nodeId2].x} ${Board[nodeId2].y} $count"
 
-    fun isHorizontal() = Board[nodeId1].y == Board[nodeId2].y
-    fun isParallel(link: Link) = isHorizontal() == link.isHorizontal()
+    private fun isHorizontal() = Board[nodeId1].y == Board[nodeId2].y
+    private fun isParallel(link: Link) = isHorizontal() == link.isHorizontal()
 
     fun isCrossing(link: Link): Boolean {
-
-        if (isParallel(link)) return false
-
         return when {
             isParallel(link) -> false
             isHorizontal() -> inRange(link) { it.x } && link.inRange(this) { it.y }
@@ -77,17 +64,16 @@ data class Link(
         ))
         return coord(Board[link.nodeId1]) in range || coord(Board[link.nodeId2]) in range
     }
-
 }
 
 object Board {
     lateinit var nodes: List<Node>
 
     operator fun get(index: Int) = nodes[index]
+
     fun init(input: Scanner) {
-        val width = input.nextInt() // the number of cells on the X axis
-        val start = System.currentTimeMillis()
-        val height = input.nextInt() // the number of cells on the Y axis
+        val width = input.nextInt()
+        val height = input.nextInt()
         if (input.hasNextLine()) {
             input.nextLine()
         }
@@ -105,118 +91,111 @@ object Board {
                     for (i in x + 1 until width) {
                         val neighbor = board[y][i]
                         if (neighbor != null) {
-                            it.neighbours.add(neighbor.index)
-                            neighbor.neighbours.add(it.index)
+                            addNeighbors(it, neighbor)
                             break
                         }
                     }
                     for (i in y + 1 until height) {
                         val neighbor = board[i][x]
                         if (neighbor != null) {
-                            it.neighbours.add(neighbor.index)
-                            neighbor.neighbours.add(it.index)
+                            addNeighbors(it, neighbor)
                             break
                         }
                     }
                 }
             }
         }
-        System.err.println("initialized in ${System.currentTimeMillis() - start}ms")
+    }
+
+    fun addNeighbors(node1: Node, node2: Node) {
+        node1.neighbours.add(node2.id)
+        node2.neighbours.add(node1.id)
     }
 
     fun initialState() = State(
-        nodes.map { StateNode(it.index, it.maxLinks, it.neighbours.associateWith { 0 }.toMutableMap()) },
+        nodes.map { StateNode(it.id, it.maxLinks, it.neighbours.associateWith { 0 }.toMutableMap()) },
         mutableListOf()
     )
-
 }
 
 class StateNode(
-    val index: Int,
-    var power: Int,
+    val id: Int,
+    var links: Int,
     val neighbours: MutableMap<Int, Int>
 ) {
-    fun copy() = StateNode(index, power, neighbours.toMutableMap())
-    fun isComplete() = power == 0
+    fun copy() = StateNode(id, links, neighbours.toMutableMap())
+    fun isComplete() = links == 0
+
     fun removeCrossingWith(link: Link) {
         neighbours.keys
-            .filter { link.isCrossing(Link(it, index)) }
+            .filter { link.isCrossing(Link(it, id)) }
             .forEach(neighbours::remove)
     }
 
     fun addLink(neighborId: Int, link: Int = 1) {
-        power -= link
+        links -= link
         neighbours[neighborId] = neighbours[neighborId]!! + link
     }
 }
-
 
 class State(
     val nodes: List<StateNode>,
     val links: MutableList<Link>
 ) {
-
-    fun getMandatoryLink(): List<Link> {
-        val mandatoryLinks = mutableListOf<Link>()
-        val currentLinks = mutableListOf<Link>()
+    fun addMandatoryLink() {
+        val mandatoryLink = mutableListOf<Link>()
         do {
-            currentLinks.clear()
-            nodes.forEach { stateNode ->
-                val node = Board[stateNode.index]
-                val n = stateNode.power
-                val validNeighbours = stateNode.neighbours
+            mandatoryLink.clear()
+            nodes.forEach { node ->
+                val n = node.links
+                val validNeighbours = node.neighbours
                     .filter { (_, v) -> v < 2 }
                     .filterNot { (id, _) -> nodes[id].isComplete() }
-                val s = validNeighbours.keys.sumOf { min(2, nodes[it].power) }
+                val s = validNeighbours.keys.sumOf { min(2, nodes[it].links) }
                 validNeighbours.forEach { (neighbor, _) ->
-                    val link = n - s + min(2, nodes[neighbor].power)
+                    val link = n - s + min(2, nodes[neighbor].links)
                     if (link > 0) {
-                        stateNode.addLink(neighbor, link)
-                        nodes[neighbor].addLink(stateNode.index, link)
-                        val action = Link(node.index, neighbor, link)
-                        currentLinks.add(action)
+                        node.addLink(neighbor, link)
+                        nodes[neighbor].addLink(node.id, link)
+                        mandatoryLink.add(Link(node.id, neighbor, link))
                     }
                 }
             }
-            mandatoryLinks.addAll(currentLinks)
-            currentLinks.forEach { link -> nodes.forEach { it.removeCrossingWith(link) } }
-        } while (currentLinks.isNotEmpty())
-        links.addAll(mandatoryLinks)
-        return mandatoryLinks
+            links.addAll(mandatoryLink)
+            mandatoryLink.forEach { link -> nodes.forEach { it.removeCrossingWith(link) } }
+        } while (mandatoryLink.isNotEmpty())
     }
 
-    fun getActions(): List<Link> {
-        return nodes.filter { it.power > 0 }.flatMap { stateNode ->
-            stateNode.neighbours
-                .filter { (_, linkCount) -> linkCount < 2 }
-                .filter { (id, _) -> id > stateNode.index }
-                .filterNot { (id, _) -> nodes[id].isComplete() }
-                .map { (id, _) -> Link(stateNode.index, id) }
-        }
+    fun getPossibleLinks(): List<Link> {
+        return nodes.filterNot { it.isComplete() }
+            .flatMap { stateNode ->
+                stateNode.neighbours
+                    .filter { (_, linkCount) -> linkCount < 2 }
+                    .filter { (id, _) -> id > stateNode.id }
+                    .filterNot { (id, _) -> nodes[id].isComplete() }
+                    .map { (id, _) -> Link(stateNode.id, id) }
+            }
     }
 
-    fun copy(): State {
-        return State(
-            nodes.map { it.copy() },
-            MutableList(links.size) { links[it] },
-        )
-    }
+    fun copy() = State(
+        nodes.map { it.copy() },
+        MutableList(links.size) { links[it] },
+    )
 
     fun play(link: Link) {
         nodes[link.nodeId1].addLink(link.nodeId2, link.count)
         nodes[link.nodeId2].addLink(link.nodeId1, link.count)
         links.add(link)
         nodes.forEach { it.removeCrossingWith(link) }
+        addMandatoryLink()
     }
 
-    fun isFinish() = nodes.none { !it.isComplete() }
+    fun isFinish() = nodes.all { it.isComplete() }
+    fun isValid(link: Link) = !isSubOptimal() && !isBreakdown(link.nodeId1)
+    private fun isIsolated(node: StateNode) = node.links > node.neighbours.keys.sumOf { id -> nodes[id].links }
+    private fun isSubOptimal() = nodes.filterNot { it.isComplete() }.any(::isIsolated)
 
-    fun isValid(nodeId: Int) = !isSubOptimal() && !isBreakdown(nodeId)
-
-    private fun isSubOptimal() = nodes.filterNot { it.isComplete() }
-        .any { it.power > it.neighbours.keys.sumOf { id -> nodes[id].power } }
-
-    fun isBreakdown(nodeId: Int): Boolean {
+    private fun isBreakdown(nodeId: Int): Boolean {
         val toVisit = LinkedList<Int>()
         val visited = mutableSetOf<Int>()
         toVisit.add(nodeId)
@@ -232,7 +211,6 @@ class State(
                 .keys.filterNot(visited::contains)
                 .forEach(toVisit::add)
         }
-
         return visited.size != nodes.size
     }
 }
