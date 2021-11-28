@@ -32,10 +32,16 @@ sealed interface Action {
     }
 }
 
-data class State(
+class State(
     val indy: Position,
     val board: Array<IntArray>
 ) {
+
+    fun copy() = State(
+        indy.copy(),
+        board.map { it.copyOf() }.toTypedArray()
+    )
+
     fun play(action: Action) {
 
         if (action is Action.Rotate) {
@@ -63,7 +69,6 @@ data class State(
             4, 10 -> if (indy.dir == Direction.RIGHT) indy.move(Direction.TOP) else indy.move(Direction.RIGHT)
             5, 11 -> if (indy.dir == Direction.LEFT) indy.move(Direction.TOP) else indy.move(Direction.LEFT)
         }
-
     }
 
     fun isValid(): Boolean {
@@ -80,6 +85,8 @@ data class State(
         }
     }
 
+    fun isValidPos() = board.getOrNull(indy.y)?.getOrNull(indy.x) != null
+
     override fun toString(): String {
         val sb = StringBuilder(indy.toString()).appendLine()
         sb.append(board.joinToString("\n") { it.joinToString(" ") })
@@ -87,6 +94,22 @@ data class State(
     }
 }
 
+fun isValidPath(state: State, exitX: Int, exitY: Int): Boolean {
+    if (state.indy.y == exitY && state.indy.x == exitX) return true
+    if (!state.isValid()) return false
+
+    val nextPos = state.copy().apply { play(Action.Wait) }.takeIf { it.isValidPos() }?.indy ?: return false
+    val actions = listOf(
+        Action.Wait,
+        Action.Rotate(nextPos.x, nextPos.y, "RIGHT"),
+        Action.Rotate(nextPos.x, nextPos.y, "LEFT"),
+    )
+    for (action in actions) {
+        val child = state.copy().apply { play(action) }
+        if (isValidPath(child, exitX, exitY)) return true
+    }
+    return false
+}
 
 fun main() {
     val input = Scanner(System.`in`)
@@ -94,27 +117,38 @@ fun main() {
     val lines = List(height) { input.nextLine().split(" ").map { it.toInt() }.toTypedArray() }
 
     val board = lines.map { it.map { n -> n.absoluteValue }.toIntArray() }.toTypedArray()
-    val exit = input.nextInt() // the coordinate along the X axis of the exit.
-
-    val actions = LinkedList(listOf(
-        Action.Rotate(2, 1, "RIGHT"),
-        Action.Rotate(1, 1, "RIGHT"),
-        Action.Rotate(0, 1, "RIGHT"),
-        Action.Rotate(0, 1, "RIGHT")
-    ))
+    val exitX = input.nextInt() // the coordinate along the X axis of the exit.
+    val exitY = height - 1
     // game loop
+    var currentBoard = board
     while (true) {
         val indy = Position(input)
         System.err.println(indy)
-        val state = State(indy, board)
+        val state = State(indy, currentBoard)
 
         val R = input.nextInt() // the number of rocks currently in the grid.
         val rocks = List(R) { Position(input) }
 
-        val action = actions.poll()?:Action.Wait
-        state.play(action)
-        System.err.println(state)
-        System.err.println(state.isValid())
-        println(action)
+        val nextPos = state.copy().apply { play(Action.Wait) }.indy
+        val actions = listOf(
+            Action.Wait,
+            Action.Rotate(nextPos.x, nextPos.y, "RIGHT"),
+            Action.Rotate(nextPos.x, nextPos.y, "LEFT"),
+        )
+
+        var actionToPlay: Action? = null
+        for (action in actions) {
+            val child = state.copy().apply { play(action) }
+            if (isValidPath(child, exitX, exitY)) {
+                currentBoard = child.board
+                actionToPlay = action
+                break
+            }
+        }
+
+        if (actionToPlay == null) {
+            System.err.println("There is no hope !")
+        }
+        println(actionToPlay ?: Action.Wait)
     }
 }
