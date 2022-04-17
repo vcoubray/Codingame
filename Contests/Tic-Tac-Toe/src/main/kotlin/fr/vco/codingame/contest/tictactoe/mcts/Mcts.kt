@@ -5,6 +5,7 @@ import fr.vco.codingame.contest.tictactoe.DRAW
 import fr.vco.codingame.contest.tictactoe.IN_PROGRESS
 import fr.vco.codingame.contest.tictactoe.game.Action
 import fr.vco.codingame.contest.tictactoe.game.Board
+import fr.vco.codingame.contest.tictactoe.game.Grid
 import fr.vco.codingame.contest.tictactoe.log
 import kotlin.math.ln
 import kotlin.math.sqrt
@@ -27,7 +28,7 @@ object Mcts {
         val end = System.currentTimeMillis() + timeout
         rootState.load(board)
 
-        rootNode = Node(null,null)
+        rootNode = Node(null, null)
         createdNodes = 1
         totalSimulation = 0
         while (System.currentTimeMillis() < end) {
@@ -66,7 +67,7 @@ object Mcts {
         return bestNode.action
     }
 
-    fun summary() = "${bestNode.win/bestNode.visit} ${rootNode.visit} ${executionTime}ms"
+    fun summary() = "${bestNode.win / bestNode.visit} ${rootNode.visit} ${executionTime}ms"
 
     private fun selectPromisingNode(node: Node): Node {
         var bestNode = node
@@ -107,6 +108,5 @@ object Mcts {
     fun simulateRandomGame(): Int {
         return simulationState.simulateRandomGame()
     }
-
 
 }

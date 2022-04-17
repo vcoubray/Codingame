@@ -2,6 +2,7 @@ package fr.vco.codingame.contest.tictactoe
 
 import fr.vco.codingame.contest.tictactoe.game.Action
 import fr.vco.codingame.contest.tictactoe.game.Board
+import fr.vco.codingame.contest.tictactoe.game.Grid
 import fr.vco.codingame.contest.tictactoe.mcts.Mcts
 import java.util.*
 
@@ -23,8 +24,8 @@ fun main() {
             freeCells.add(row to col)
         }
     }
-
-    val board = Board(ME, freeCells)
+    val grids = List(9){Grid(IN_PROGRESS, freeCells.toMutableList())}
+    val board = Board(grids)
 
 
     // game loop
@@ -40,9 +41,11 @@ fun main() {
         val freeCells = List(validActionCount) {
             input.nextInt() to input.nextInt()
         }
-        freeCells.forEach(::log)
+//        freeCells.forEach(::log)
         val action = Mcts.findNextMove(board)!!
-//        val action = board.getActions().randomOrNull()!!
+//        board.getActions().forEach(::log)
+
+//        val action = freeCells.randomOrNull()?.let{Action(it.first,it.second,ME)}!!
 
         println(action)
         board.play(action)

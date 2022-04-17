@@ -1,71 +1,93 @@
 package fr.vco.codingame.contest.tictactoe.game
 
-import fr.vco.codingame.contest.tictactoe.DRAW
-import fr.vco.codingame.contest.tictactoe.IN_PROGRESS
-import fr.vco.codingame.contest.tictactoe.ME
-import fr.vco.codingame.contest.tictactoe.OPP
+import fr.vco.codingame.contest.tictactoe.*
+
 
 class Board(
-    var currentPlayer: Int = ME,
-    val freeCell: MutableList<Pair<Int, Int>> = mutableListOf(),
-    val grid: List<MutableList<Int>> = List(3) { MutableList(3) { IN_PROGRESS } }
+    val grids: List<Grid> = List(9) { Grid() }, var currentPlayer: Int = ME, var nextGridId: Int = -1
 ) {
 
-    fun getActions() = freeCell.map { (row, col) -> Action(row, col, currentPlayer) }
+    fun getActions(): List<Action> {
+        val nextGrid = grids.getOrNull(nextGridId)
+        return if (nextGrid?.status == IN_PROGRESS) nextGrid.freeCell.map {
+            Action(
+                it.first + nextGridId / 3 * 3,
+                it.second + nextGridId % 3 * 3,
+                currentPlayer
+            )
+        }
+        else grids.flatMapIndexed { i, grid ->
+            if (grid.status == IN_PROGRESS) grid.freeCell.map {
+                Action(
+                    it.first + i / 3 * 3,
+                    it.second + i % 3 * 3,
+                    currentPlayer
+                )
+            }
+            else emptyList()
+        }
+
+    }
 
     fun play(action: Action) {
-        grid[action.row][action.col] = action.player
-        freeCell.remove(action.row to action.col)
+        val gridNumber = action.row / 3 * 3 + action.col / 3
+        val row = action.row % 3
+        val col = action.col % 3
+
+        grids[gridNumber].play(Action(row, col, action.player))
         currentPlayer = 1 - action.player
+        nextGridId = row * 3 + col
     }
 
     fun getStatus(): Int {
-        if (grid[1][1] != IN_PROGRESS && grid[1][1] == grid[0][0] && grid[1][1] == grid[2][2]) return grid[1][1]
-        if (grid[1][1] != IN_PROGRESS && grid[1][1] == grid[0][2] && grid[1][1] == grid[2][0]) return grid[1][1]
+
+        if (grids[4].status != IN_PROGRESS && grids[4].status == grids[0].status && grids[4].status == grids[8].status) return grids[4].status
+        if (grids[4].status != IN_PROGRESS && grids[4].status == grids[2].status && grids[4].status == grids[6].status) return grids[4].status
         repeat(3) { i ->
-            if (grid[i][0] != IN_PROGRESS && grid[i][0] == grid[i][1] && grid[i][0] == grid[i][2]) return grid[i][0]
-            if (grid[0][i] != IN_PROGRESS && grid[0][i] == grid[1][i] && grid[0][i] == grid[2][i]) return grid[0][i]
+            val j = 3 * i
+            if (grids[j].status != IN_PROGRESS && grids[j].status == grids[j + 1].status && grids[j].status == grids[j + 2].status) return grids[j].status
+            if (grids[i].status != IN_PROGRESS && grids[i].status == grids[i + 3].status && grids[i].status == grids[i + 6].status) return grids[i].status
         }
-        return if (freeCell.size > 0) IN_PROGRESS else DRAW
+        return if (grids.any { it.status == IN_PROGRESS }) IN_PROGRESS else DRAW
     }
-
-    override fun toString(): String {
-        return grid.joinToString("\n") { row ->
-            row.joinToString(" ") {
-                when (it) {
-                    ME -> "X"
-                    OPP -> "O"
-                    else -> "_"
-                }
-            }
-        }
-    }
-
-//    fun copy(): Grid {
-//        return Grid(
-//            freeCell.toMutableList(),
-//            grid.map{it.toMutableList()}
-//        )
-//    }
 
     fun load(board: Board) {
         currentPlayer = board.currentPlayer
-        freeCell.clear()
-        freeCell.addAll(board.freeCell)
-        board.grid.forEachIndexed { iRow, row ->
-            row.forEachIndexed { iCol, col ->
-                grid[iRow][iCol] = col
-            }
+        nextGridId = board.nextGridId
+        board.grids.forEachIndexed { i, grid ->
+            grids[i].load(grid)
         }
-
     }
 
-    fun simulateRandomGame() : Int {
+
+    fun simulateRandomGame(): Int {
         while (getStatus() == IN_PROGRESS) {
-            val action = getActions().random()
+            val actions = getActions()
+            val action = actions.random()
             play(action)
         }
         return getStatus()
     }
 
+
+    override fun toString(): String {
+        val sb = StringBuffer()
+        repeat(9) { row ->
+            repeat(3) { col ->
+                sb.append("${
+                    grids[row / 3 * 3 + col].grid[row % 3].joinToString(" ") {
+                        when (it) {
+                            ME -> "X"
+                            OPP -> "O"
+                            else -> "_"
+                        }
+                    }
+                }|")
+            }
+            sb.append("\n")
+        }
+        return sb.toString()
+    }
+
 }
+
