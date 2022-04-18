@@ -4,7 +4,10 @@ import fr.vco.codingame.contest.tictactoe.*
 
 
 class Board(
-    val grids: List<Grid> = List(9) { Grid() }, var currentPlayer: Int = ME, var nextGridId: Int = -1
+    val grids: Array<Grid> = Array(9) { Grid() },
+    var currentPlayer: Int = ME,
+    var nextGridId: Int = -1,
+    var status: Int = IN_PROGRESS
 ) {
 
     fun getActions(): List<Action> {
@@ -37,9 +40,10 @@ class Board(
         grids[gridNumber].play(Action(row, col, action.player))
         currentPlayer = 1 - action.player
         nextGridId = row * 3 + col
+        status = calcStatus()
     }
 
-    fun getStatus(): Int {
+    fun calcStatus(): Int {
 
         if (grids[4].status != IN_PROGRESS && grids[4].status == grids[0].status && grids[4].status == grids[8].status) return grids[4].status
         if (grids[4].status != IN_PROGRESS && grids[4].status == grids[2].status && grids[4].status == grids[6].status) return grids[4].status
@@ -48,12 +52,28 @@ class Board(
             if (grids[j].status != IN_PROGRESS && grids[j].status == grids[j + 1].status && grids[j].status == grids[j + 2].status) return grids[j].status
             if (grids[i].status != IN_PROGRESS && grids[i].status == grids[i + 3].status && grids[i].status == grids[i + 6].status) return grids[i].status
         }
-        return if (grids.any { it.status == IN_PROGRESS }) IN_PROGRESS else DRAW
+
+
+        var winner = 0
+        grids.forEach {
+            when (it.status) {
+                IN_PROGRESS -> return IN_PROGRESS
+                ME -> winner++
+                OPP -> winner--
+            }
+        }
+        return when {
+            winner > 0 -> ME
+            winner < 0 -> OPP
+            else -> DRAW
+        }
+
     }
 
     fun load(board: Board) {
         currentPlayer = board.currentPlayer
         nextGridId = board.nextGridId
+        status = board.status
         board.grids.forEachIndexed { i, grid ->
             grids[i].load(grid)
         }
@@ -61,12 +81,10 @@ class Board(
 
 
     fun simulateRandomGame(): Int {
-        while (getStatus() == IN_PROGRESS) {
-            val actions = getActions()
-            val action = actions.random()
-            play(action)
+        while (status == IN_PROGRESS) {
+            play(getActions().random())
         }
-        return getStatus()
+        return status
     }
 
 

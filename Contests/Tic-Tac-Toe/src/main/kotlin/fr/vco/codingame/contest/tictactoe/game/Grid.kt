@@ -5,10 +5,12 @@ import fr.vco.codingame.contest.tictactoe.IN_PROGRESS
 import fr.vco.codingame.contest.tictactoe.ME
 import fr.vco.codingame.contest.tictactoe.OPP
 
+
+
 class Grid(
     var status: Int = IN_PROGRESS,
     val freeCell: MutableList<Pair<Int, Int>> = mutableListOf(),
-    val grid: List<MutableList<Int>> = List(3) { MutableList(3) { IN_PROGRESS } }
+    val grid: Array<IntArray> = Array(3) { IntArray(3) { IN_PROGRESS } }
 ) {
 
 //    fun getActions() = freeCell.map { (row, col) -> Action(row, col, currentPlayer) }

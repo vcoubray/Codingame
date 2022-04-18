@@ -39,7 +39,7 @@ object Mcts {
             val promisingNode = selectPromisingNode(rootNode)
 
             // 2 - Expansion
-            if (simulationState.getStatus() == IN_PROGRESS) {
+            if (simulationState.status == IN_PROGRESS) {
                 expand(promisingNode)
             }
 
@@ -97,7 +97,7 @@ object Mcts {
             current.visit++
             current.win += when (winner) {
                 current.action?.player -> 1f
-                DRAW -> 0.5f
+                DRAW -> 0.25f
                 else -> 0f
             }
             current = current.parent
