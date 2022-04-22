@@ -1,9 +1,15 @@
 package fr.vco.codingame.contest.springchallenge2022
 
 import java.util.*
+import kotlin.math.PI
+import kotlin.math.cos
+import kotlin.math.sin
 
 const val MAX_X = 17630
 const val MAX_Y = 9000
+
+const val BASE_VISION = 6000
+const val HERO_VISION = 2200
 
 const val MONSTER = 0
 const val MY_HERO = 1
@@ -16,6 +22,7 @@ const val THREAD_NOBODY = 0
 const val THREAD_ME = 1
 const val THREAD_OPP = 2
 
+const val BASE_RANGE = 5000 * 5000
 const val RANGE_CONTROL = 2200 * 2200
 const val RANGE_SHIELD = 2200 * 2200
 const val RANGE_WIND = 1280 * 1280
@@ -23,6 +30,7 @@ const val RANGE_WIND = 1280 * 1280
 fun log(message: Any?) = System.err.println(message)
 
 fun Int.square() = this * this
+
 
 data class Pos(val x: Int, val y: Int) {
     operator fun plus(pos: Pos) = Pos(x + pos.x, y + pos.y)
@@ -92,10 +100,16 @@ data class Hero(
     var defaultPos: Pos? = null,
 ) {
 
-    fun play(mana: Int, oppBase: Base) {
+    fun play(mana: Int, oppBase: Base, myBase: Base) {
         val action = target?.let {
             if (mana > 30 &&
-                it.health >10 &&
+                it.pos.dist(myBase.pos) < BASE_RANGE &&
+                it.shieldLife == 0 &&
+                it.pos.dist(pos) < RANGE_WIND
+                )"SPELL WIND ${oppBase.pos}"
+            else if (mana > 30 &&
+                it.threatFor != THREAD_OPP &&
+                it.health > 15 &&
                 it.shieldLife == 0 &&
                 it.pos.dist(pos) < RANGE_CONTROL
             ) "SPELL CONTROL ${target?.id} ${oppBase.pos}"
@@ -125,9 +139,10 @@ fun main() {
 
     val heroesPerPlayer = input.nextInt() // Always 3
 
+    val defaultDist = BASE_VISION + HERO_VISION / 2
     val defaultPos = listOf(
-        myBase.fromBase(Pos(7000, 1750)),
-        myBase.fromBase(Pos(3500, 6500)),
+        myBase.fromBase(Pos((cos(PI / 8) * defaultDist).toInt(), (sin(PI / 8) * defaultDist).toInt())),
+        myBase.fromBase(Pos((cos(3 * PI / 8) * defaultDist).toInt(), (sin(3 * PI / 8) * defaultDist).toInt())),
         myBase.fromBase(Pos(MAX_X / 2, MAX_Y / 2))
     )
 
@@ -156,7 +171,7 @@ fun main() {
                     ?.target = monster.apply { this.targeted = true }
             }
 
-        myHeroes.forEach { it.play(myBase.mana, oppBase) }
+        myHeroes.forEach { it.play(myBase.mana, oppBase, myBase) }
 
     }
 }
