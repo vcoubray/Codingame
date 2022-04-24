@@ -1,5 +1,6 @@
 package fr.vco.codingame.contest.springchallenge2022
 
+import fr.vco.codingame.contest.springchallenge2022.entities.Entity
 import java.util.*
 import kotlin.math.PI
 import kotlin.math.cos
@@ -29,8 +30,12 @@ const val RANGE_WIND = 1280 * 1280
 
 fun log(message: Any?) = System.err.println(message)
 
-fun Int.square() = this * this
+enum class Role {
+    DEFENDER,
+    ATTACKER
+}
 
+fun Int.square() = this * this
 
 data class Pos(val x: Int, val y: Int) {
     operator fun plus(pos: Pos) = Pos(x + pos.x, y + pos.y)
@@ -38,6 +43,17 @@ data class Pos(val x: Int, val y: Int) {
     fun dist(pos: Pos) = (pos.x - x).square() + (pos.y - y).square()
     override fun toString() = "$x $y"
 
+}
+
+data class PatrolPath(val path: List<Pos>) {
+    var currentPos = 0
+
+    fun nextPos(pos: Pos): Pos {
+        if (path[currentPos] == pos) {
+            currentPos = (currentPos + 1) % path.size
+        }
+        return path[currentPos]
+    }
 }
 
 data class Base(val pos: Pos) {
@@ -55,40 +71,92 @@ data class Base(val pos: Pos) {
     }
 }
 
-data class Entity(
-    val id: Int,
-    val type: Int,
-    val pos: Pos,
-    val shieldLife: Int,
-    val isControlled: Boolean,
-    val health: Int,
-    val dir: Pos,
-    val nearBase: Int,
-    val threatFor: Int,
-    var targeted: Boolean = false,
-    var target: Entity? = null,
-) {
 
-    constructor(input: Scanner) : this(
-        id = input.nextInt(),
-        type = input.nextInt(),
-        pos = Pos(
-            x = input.nextInt(),
-            y = input.nextInt()
-        ),
-        shieldLife = input.nextInt(),
-        isControlled = input.nextInt() == 1,
-        health = input.nextInt(),
-        dir = Pos(
-            x = input.nextInt(),
-            y = input.nextInt()
-        ),
-        nearBase = input.nextInt(),
-        threatFor = input.nextInt(),
-    )
+class Game {
+    lateinit var myBase: Base
+    lateinit var oppBase: Base
+    var entities: List<Entity> = emptyList()
+    var myHeroes: List<Hero> = emptyList()
+    var monsters: List<Monster> = emptyList()
 
-    fun toHero() = Hero(id, type == MY_HERO, pos)
-    fun toMonster() = Monster(id, pos, health, dir, nearBase, threatFor)
+    val defaultDist = BASE_VISION + HERO_VISION / 2
+
+    val formation = listOf(Role.DEFENDER, Role.DEFENDER, Role.ATTACKER)
+
+    lateinit var defaultPaths: List<PatrolPath>
+
+    fun init(input: Scanner) {
+        myBase = Base(Pos(input.nextInt(), input.nextInt()))
+        oppBase = Base(Pos(MAX_X - myBase.pos.x, MAX_Y - myBase.pos.y))
+        val heroesPerPlayer = input.nextInt()
+        defaultPaths = listOf(
+            PatrolPath(
+                listOf(
+                    myBase.fromBase(Pos((cos(PI / 16) * defaultDist).toInt(), (sin(PI / 16) * defaultDist).toInt())),
+                    myBase.fromBase(
+                        Pos(
+                            (cos(3 * PI / 16) * defaultDist).toInt(),
+                            (sin(3 * PI / 16) * defaultDist).toInt()
+                        )
+                    )
+                )
+            ),
+            PatrolPath(
+                listOf(
+                    myBase.fromBase(
+                        Pos(
+                            (cos(7 * PI / 16) * defaultDist).toInt(),
+                            (sin(7 * PI / 16) * defaultDist).toInt()
+                        )
+                    ),
+                    myBase.fromBase(
+                        Pos(
+                            (cos(5 * PI / 16) * defaultDist).toInt(),
+                            (sin(5 * PI / 16) * defaultDist).toInt()
+                        )
+                    )
+                )
+            ),
+            PatrolPath(
+                listOf(
+                    myBase.fromBase(Pos(MAX_X / 2, MAX_Y / 2))
+                )
+            )
+        )
+    }
+
+    fun update(input: Scanner) {
+        myBase.update(input)
+        oppBase.update(input)
+
+        val entityCount = input.nextInt()
+        entities = List(entityCount) { Entity(input) }
+
+        myHeroes = entities
+            .filter { it.type == MY_HERO }
+            .sortedBy { it.id }
+            .mapIndexed { i, it ->
+                it.toHero().apply {
+                    this.role = formation[i]
+                    this.patrolPath = defaultPaths[i]
+                }
+            }
+        monsters = entities
+            .filter { it.type == MONSTER }
+            .map { it.toMonster().apply { calculateThreadLevel(myBase) } }
+            .sortedByDescending { it.threadLevel }
+
+        monsters.take(3).forEach { monster ->
+            myHeroes.filter { it.role == Role.DEFENDER }
+                .filter { it.target == null }
+                .minByOrNull { monster.pos.dist(it.pos) }
+                ?.target = monster.apply { this.targeted = true }
+        }
+    }
+
+    fun play() {
+        myHeroes.forEach { it.play(this) }
+    }
 
 }
 
@@ -96,83 +164,97 @@ data class Hero(
     val id: Int,
     val isGoodGuy: Boolean,
     val pos: Pos,
-    var target: Entity? = null,
-    var defaultPos: Pos? = null,
+    var role: Role = Role.DEFENDER,
+    var target: Monster? = null,
+    var patrolPath: PatrolPath? = null,
 ) {
 
-    fun play(mana: Int, oppBase: Base, myBase: Base) {
-        val action = target?.let {
-            if (mana > 30 &&
-                it.pos.dist(myBase.pos) < BASE_RANGE &&
+    fun play(game: Game) {
+
+        val action = when (role) {
+            Role.DEFENDER -> playDefender(game)
+            Role.ATTACKER -> playAttacker(game)
+        }
+
+        println("$action $role")
+    }
+
+
+    fun playDefender(game: Game): String {
+        return target?.let {
+            if (game.myBase.mana > 30 &&
+                it.pos.dist(game.myBase.pos) < BASE_RANGE &&
                 it.shieldLife == 0 &&
                 it.pos.dist(pos) < RANGE_WIND
-                )"SPELL WIND ${oppBase.pos}"
-            else if (mana > 30 &&
-                it.threatFor != THREAD_OPP &&
-                it.health > 15 &&
-                it.shieldLife == 0 &&
-                it.pos.dist(pos) < RANGE_CONTROL
-            ) "SPELL CONTROL ${target?.id} ${oppBase.pos}"
+            ) "SPELL WIND ${game.oppBase.pos}"
+//            else if (mana > 30 &&
+//                it.threatFor != THREAD_OPP &&
+//                it.health > 15 &&
+//                it.shieldLife == 0 &&
+//                it.pos.dist(pos) < RANGE_CONTROL
+//            ) "SPELL CONTROL ${target?.id} ${oppBase.pos}"
             else "MOVE ${it.pos + it.dir}"
         }
-            ?: defaultPos?.let { "MOVE $it" }
+            ?: patrolPath?.nextPos(pos)?.let { "MOVE $it" }
             ?: "WAIT"
-        println(action)
+    }
+
+    fun playAttacker(game: Game): String {
+        return game.monsters
+            .filterNot { it.targeted }
+            .minByOrNull { it.pos.dist(this.pos) }?.let {
+                if (game.myBase.mana > 30 &&
+                    it.threatFor != THREAD_OPP &&
+                    it.health > 15 &&
+                    it.shieldLife == 0 &&
+                    it.pos.dist(pos) < RANGE_CONTROL
+                ) {
+                    "SPELL CONTROL ${it.id} ${game.oppBase.pos}"
+                } else {
+                    "MOVE ${it.pos + it.dir}"
+                }
+            } ?: patrolPath?.nextPos(pos)?.let { "MOVE $it" }
+        ?: "WAIT"
     }
 }
 
 data class Monster(
     val id: Int,
     val pos: Pos,
+    val shieldLife: Int,
+    val isControlled: Boolean,
     val health: Int,
     val dir: Pos,
     val nearBase: Int,
     val threatFor: Int,
-)
+
+    ) {
+    var targeted: Boolean = false
+    var threadLevel: Double = 0.0
+
+    fun calculateThreadLevel(base: Base) {
+        threadLevel = when (threatFor) {
+            THREAD_ME -> 1000
+            THREAD_NOBODY -> 500
+            else -> 0
+        } + 500 * 1.0 / (base.pos.dist(pos) + 1)
+    }
+}
 
 
 fun main() {
     val input = Scanner(System.`in`)
 
-    val myBase = Base(Pos(input.nextInt(), input.nextInt()))
-    val oppBase = Base(Pos(MAX_X - myBase.pos.x, MAX_Y - myBase.pos.y))
+    val game = Game()
+    game.init(input)
 
-    val heroesPerPlayer = input.nextInt() // Always 3
-
-    val defaultDist = BASE_VISION + HERO_VISION / 2
-    val defaultPos = listOf(
-        myBase.fromBase(Pos((cos(PI / 8) * defaultDist).toInt(), (sin(PI / 8) * defaultDist).toInt())),
-        myBase.fromBase(Pos((cos(3 * PI / 8) * defaultDist).toInt(), (sin(3 * PI / 8) * defaultDist).toInt())),
-        myBase.fromBase(Pos(MAX_X / 2, MAX_Y / 2))
-    )
+    log("after init")
 
     // game loop
     while (true) {
-        myBase.update(input)
-        oppBase.update(input)
-
-        val entityCount = input.nextInt()
-        val entities = List(entityCount) { Entity(input) }
-
-        val myHeroes = entities
-            .filter { it.type == MY_HERO }
-            .sortedBy { it.id }
-            .mapIndexed { i, it -> it.toHero().apply { this.defaultPos = defaultPos[i] } }
-        val monsters = entities.filter { it.type == MONSTER }
-
-        monsters.filterNot { it.threatFor == THREAD_OPP }
-            .filterNot { it.targeted }
-            .sortedWith(compareBy({ -it.threatFor }, { it.pos.dist(myBase.pos) }))
-            .take(myHeroes.size)
-            .forEach { monster ->
-                myHeroes
-                    .filter { it.target == null }
-                    .minByOrNull { monster.pos.dist(it.pos) }
-                    ?.target = monster.apply { this.targeted = true }
-            }
-
-        myHeroes.forEach { it.play(myBase.mana, oppBase, myBase) }
-
+        game.update(input)
+        log("after update")
+        game.play()
     }
 }
 
