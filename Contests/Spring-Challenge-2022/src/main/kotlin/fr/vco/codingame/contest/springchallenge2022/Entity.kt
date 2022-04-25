@@ -1,9 +1,5 @@
-package fr.vco.codingame.contest.springchallenge2022.entities
+package fr.vco.codingame.contest.springchallenge2022
 
-import fr.vco.codingame.contest.springchallenge2022.Hero
-import fr.vco.codingame.contest.springchallenge2022.MY_HERO
-import fr.vco.codingame.contest.springchallenge2022.Monster
-import fr.vco.codingame.contest.springchallenge2022.Pos
 import java.util.*
 
 data class Entity(
@@ -16,9 +12,12 @@ data class Entity(
     val dir: Pos,
     val nearBase: Int,
     val threatFor: Int,
-    var targeted: Boolean = false,
-    var target: Entity? = null,
 ) {
+    val nextPos = pos + dir
+    var targeted: Boolean = false
+    var target: Entity? = null
+    var threadLevel: Double = 0.0
+
 
     constructor(input: Scanner) : this(
         id = input.nextInt(),
@@ -38,7 +37,18 @@ data class Entity(
         threatFor = input.nextInt(),
     )
 
-    fun toHero() = Hero(id, type == MY_HERO, pos)
-    fun toMonster() = Monster(id, pos,shieldLife, isControlled, health, dir, nearBase, threatFor)
+    fun dist(entity: Entity) = pos.dist(entity.pos)
+    fun dist(base: Base) = pos.dist(base.pos)
+    fun dist(pos: Pos) = this.pos.dist(pos)
+
+
+    fun calculateThreadLevel(base: Base) {
+        threadLevel = when (threatFor) {
+            THREAD_ME -> 1000
+            THREAD_NOBODY -> 500
+            else -> 0
+        } + 500 * 1.0 / (base.pos.dist(pos) + 1)
+    }
+
 
 }
