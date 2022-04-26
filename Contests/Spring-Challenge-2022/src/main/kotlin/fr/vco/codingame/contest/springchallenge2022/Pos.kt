@@ -14,6 +14,6 @@ data class Pos(val x: Int, val y: Int) {
 
     operator fun plus(pos: Pos) = Pos(x + pos.x, y + pos.y)
     operator fun minus(pos: Pos) = Pos(x - pos.x, y - pos.y)
-    fun dist(pos: Pos) = hypot((pos.x - x).toDouble(), (pos.y - y).toDouble())
+    fun dist(pos: Pos) = hypot((pos.x - x).toDouble(), (pos.y - y).toDouble()).toInt()
     override fun toString() = "$x $y"
 }

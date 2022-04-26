@@ -10,12 +10,10 @@ data class Entity(
     val isControlled: Boolean,
     val health: Int,
     val dir: Pos,
-    val nearBase: Int,
+    val nearBase: Boolean,
     val threatFor: Int,
 ) {
     val nextPos = pos + dir
-    var targeted: Boolean = false
-    var target: Entity? = null
     var threadLevel: Double = 0.0
 
 
@@ -33,14 +31,13 @@ data class Entity(
             x = input.nextInt(),
             y = input.nextInt()
         ),
-        nearBase = input.nextInt(),
+        nearBase = input.nextInt() == 1,
         threatFor = input.nextInt(),
     )
 
     fun dist(entity: Entity) = pos.dist(entity.pos)
     fun dist(base: Base) = pos.dist(base.pos)
     fun dist(pos: Pos) = this.pos.dist(pos)
-
 
     fun calculateThreadLevel(base: Base) {
         threadLevel = when (threatFor) {
@@ -50,5 +47,11 @@ data class Entity(
         } + 500 * 1.0 / (base.pos.dist(pos) + 1)
     }
 
+    fun timeToReach(base: Base): Int {
+        return ((dist(base) - MONSTER_ATTACK_RANGE) / MONSTER_MOVEMENT)
+    }
 
+    fun timeToReach(entity: Entity, attackRange: Int): Int{
+        return (dist(entity) - attackRange) / (HERO_MOVEMENT - MONSTER_MOVEMENT)
+    }
 }
