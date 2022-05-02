@@ -11,6 +11,8 @@ class Game(val myBase: Base, val heroesPerPlayer: Int) {
     var oppHeroes: List<Entity> = emptyList()
     var monsters: List<Entity> = emptyList()
 
+    var oppUseControl: Boolean = false
+
     constructor(input: Scanner) : this(
         myBase = Base(Pos(input.nextInt(), input.nextInt())),
         heroesPerPlayer = input.nextInt()
@@ -25,31 +27,17 @@ class Game(val myBase: Base, val heroesPerPlayer: Int) {
         entities = List(entityCount) { Entity(input) }
         myHeroes = entities.filter { it.type == MY_HERO }.sortedBy { it.id }
         oppHeroes = entities.filter { it.type == OPP_HERO }.sortedBy { it.id }
-        monsters = entities.filter { it.type == MONSTER }.map { it.apply { calculateThreadLevel(myBase) } }
-//            .sortedByDescending { it.threadLevel }
+        monsters = entities.filter { it.type == MONSTER }.map {
+            it.apply {
+                it.threadLevel = calculateThreadLevel(THREAD_ME, myBase)
+                it.oppThreadLevel = calculateThreadLevel(THREAD_OPP, oppBase)
+            }
+        }
+
+        if (!oppUseControl) {
+            oppUseControl = myHeroes.any { it.isControlled }
+        }
     }
 
-    fun canWind(hero: Entity, target: Entity) = myBase.mana > 30 &&
-        target.dist(myBase) < BASE_RANGE &&
-        target.shieldLife == 0 &&
-        target.dist(hero) < RANGE_WIND
-
-    fun canReachToWind(hero: Entity, target: Entity): Boolean {
-        val timeToReach = hero.timeToReach(target, RANGE_WIND)
-        return timeToReach < target.timeToReach(myBase) &&
-            timeToReach >= target.shieldLife
-    }
-
-    fun canKillBeforeReachBase(hero: Entity, target: Entity): Boolean {
-        val timeToKill = target.health / HERO_DAMAGE
-        return target.timeToReach(myBase) > timeToKill + hero.timeToReach(target, HERO_ATTACK_RANGE)
-    }
-
-    fun canControl(hero: Entity, target: Entity): Boolean {
-        return myBase.mana > 30 &&
-            target.threatFor != THREAD_OPP &&
-            target.health > 15 &&
-            target.shieldLife == 0 &&
-            target.dist(hero) < RANGE_CONTROL
-    }
+    fun canSpell() = myBase.mana >= SPELL_COST
 }
