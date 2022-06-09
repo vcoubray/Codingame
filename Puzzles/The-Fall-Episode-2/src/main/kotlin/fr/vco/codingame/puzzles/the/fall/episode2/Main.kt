@@ -27,12 +27,6 @@ data class Position(
         y = y + dir.y,
         dir = dir
     )
-
-    fun move(dir: Direction) = Position(
-        x = x + this.dir.x,
-        y = y + this.dir.y,
-        dir = dir
-    )
 }
 
 object CellType {
@@ -184,33 +178,30 @@ object Board {
         return validPaths
     }
 
-    fun findRockPaths(start: Position, indyPath: List<Pair<Int,Int>>, log: Boolean = false): List<Path> {
+    fun findRockPaths(start: Position, indyPath: List<Pair<Int,Int>>, indyCells : List<Int>): List<Path> {
         val validPaths = mutableListOf<Path>()
         val toVisit = ArrayDeque<Path>().apply { add(Path(start)) }
 
         while (toVisit.isNotEmpty()) {
             val current = toVisit.pop()
-            val indyPos = indyPath.getOrNull(current.path.size-1)
-
+            val indyPos = indyPath.getOrNull(current.path.size - 1)
+            val indyCell = indyCells.getOrNull(current.path.size - 1)
             if (current.entity.dir == Direction.NONE) {
                 if (current.path.size > 1) validPaths.add(current)
                 continue
             }
 
-            val type = get(current.entity.x, current.entity.y)
-            val isFixed = (fixed.getOrNull(current.entity.y)?.getOrNull(current.entity.x) ?: true)  ||
-                (indyPos?.first == current.entity.x && indyPos.second == current.entity.y)
+            val isIndyPos = (indyPos?.first == current.entity.x && indyPos.second == current.entity.y)
+
+            val type = if(isIndyPos && indyCell != null) indyCell else  get(current.entity.x, current.entity.y)
+            val isFixed = (fixed.getOrNull(current.entity.y)?.getOrNull(current.entity.x) ?: true)  || isIndyPos
+
 
             val neighbors = CellType.possibleExits(
                 type,
                 current.entity.dir,
                 isFixed
             )
-
-            if(log){
-                System.err.println("${current.path.size} -> $indyPos ${current.entity}")
-                System.err.println("$type $neighbors")
-            }
 
             neighbors.forEach {
                 val rock = current.entity + it
@@ -223,11 +214,54 @@ object Board {
         return validPaths
     }
 
-    fun getActions(indyPath: Path2, rockPaths: List<Path2>): List<Action>? {
+    fun isValidCombination(indyPath: ExtendedPath, rockPaths: List<ExtendedPath>): Boolean {
+        var rockCount = rockPaths.size
+        val rocks = rockPaths.toTypedArray()
+
+        var actionCount = 0
+        for (i in 0 until indyPath.cellTypes.size) {
+            val (x, y) = indyPath.path[i]
+            val targetType = indyPath.cellTypes[i]
+            val originType = get(x, y)
+
+            if (targetType != originType) {
+                actionCount += CellType.getRotations(originType, targetType).size
+            }
+
+            for (j in 0 until rockCount) {
+                val (rx, ry) = rocks[j].path[i]
+
+                val originRockType = get(rx, ry)
+                val targetRockType = rocks[j].cellTypes[i]
+                if(x== rx && y == ry && targetType != targetRockType) return false
+                val rotations = CellType.getRotations(originRockType, targetRockType)
+                actionCount += rotations.size
+            }
+
+            for (j in rockCount - 1 downTo 0) {
+                if (rocks[j].cellTypes.size <= i + 1) {
+                    rocks[j] = rocks[rockCount - 1]
+                    rockCount--
+                }
+            }
+
+            for (j in 0 until rockCount) {
+                if (rocks[j].path[i] == indyPath.path[i]) return false
+            }
+
+            if (actionCount > i + 1 ) return false
+
+        }
+        return true
+    }
+
+    fun getActions(indyPath: ExtendedPath, rockPaths: List<ExtendedPath>): List<Action> {
         var rockCount = rockPaths.size
         val rocks = rockPaths.toTypedArray()
 
         val actions = mutableListOf<Action>()
+
+
         for (i in 0 until indyPath.cellTypes.size) {
             val (x, y) = indyPath.path[i]
             val targetType = indyPath.cellTypes[i]
@@ -243,7 +277,6 @@ object Board {
                 val targetRockType = rocks[j].cellTypes[i]
                 val rotations = CellType.getRotations(originRockType, targetRockType)
 
-                //if (rotations.isNotEmpty() && rx == x && ry == y) return null // TODO check the real position
                 rotations.forEach { actions.add(Action.Rotate(rx, ry, it)) }
             }
 
@@ -254,33 +287,11 @@ object Board {
                 }
             }
 
-            for (j in 0 until rockCount) {
-                if (rocks[j].path[i] == indyPath.path[i]) return null
-            }
-
-            if (actions.size > i + 1 ) return null
-
         }
         return actions
     }
 
-
-//    fun getRotations(type: Int, inputDir: Direction, outputDir: Direction): List<Rotation> {
-//        var rotateCount = 0
-//        var currentType = type
-//        while (CellType.outputDirection(currentType, inputDir) != outputDir && rotateCount < 3) {
-//            currentType = CellType.rotate(currentType, Rotation.RIGHT)
-//            rotateCount++
-//        }
-//        return when (rotateCount) {
-//            1 -> listOf(Rotation.RIGHT)
-//            2 -> listOf(Rotation.RIGHT, Rotation.RIGHT)
-//            3 -> listOf(Rotation.LEFT)
-//            else -> emptyList()
-//        }
-//    }
-
-    fun extendPath(path: Path, isFixed: (x: Int, y: Int, i :Int) -> Boolean = {_,_,_->false}): List<Path2> {
+    fun extendPath(path: Path, isFixed: (x: Int, y: Int, i :Int) -> Boolean = {_,_,_->false}): List<ExtendedPath> {
         val paths = mutableListOf<List<Int>>()
 
         for (i in 0 until path.directions.size - 1) {
@@ -297,7 +308,7 @@ object Board {
             val outputDir = path.directions[i + 1]
             paths.add(getPossibleRotations(type, inputDir, outputDir).toList())
         }
-        return paths.getCombinations().map { Path2(path.entity, path.path, it) }
+        return paths.getCombinations().map { ExtendedPath(path.path, it) }
     }
 
     fun getPossibleRotations(type: Int, inputDir: Direction, outputDir: Direction): Set<Int> {
@@ -314,13 +325,6 @@ object Board {
     }
 }
 
-
-class Path2(
-    val entity: Position,
-    val path: List<Pair<Int, Int>> = emptyList(),
-    val cellTypes: List<Int> = emptyList()
-)
-
 class Path(
     val entity: Position,
     val path: List<Pair<Int, Int>> = emptyList(),
@@ -334,6 +338,11 @@ class Path(
 
     override fun hashCode() = entity.hashCode()
 }
+
+class ExtendedPath(
+    val path: List<Pair<Int, Int>> = emptyList(),
+    val cellTypes: List<Int> = emptyList()
+)
 
 fun <T : Any> List<List<T>>.getCombination(i: Long): List<T> {
     val result = mutableListOf<T>()
@@ -369,9 +378,9 @@ fun main() {
             val validIndyPaths = Board.findIndyPaths(indy).flatMap(Board::extendPath)
             val validIndyPath = validIndyPaths.minByOrNull { it.path.size }!!
             val completePath = listOf(indy.x to indy.y) + validIndyPath.path
-
-            val rockPaths = rocks.mapIndexed { i, it ->  Board.findRockPaths(it, completePath, i == rocks.size-1 )}
-            val extendedRockPath = rockPaths.map{ path ->
+            val completeIndyCells = listOf(Board.get(indy.x, indy.y)) + validIndyPath.cellTypes
+            val rockPaths = rocks.map{ Board.findRockPaths(it, completePath, completeIndyCells )}
+            val extendedRockPaths = rockPaths.map{ path ->
                 path.flatMap {
                     Board.extendPath(it) { x, y, i ->
                         val (xi, yi) = completePath[i]
@@ -381,39 +390,26 @@ fun main() {
             }
 
             var actions: List<Action>? = null
-            val totalRockCombination = extendedRockPath.getCombinationCount()
-            System.err.println("Rocks Combinations : $totalRockCombination")
-
+            val totalRockCombination = extendedRockPaths.getCombinationCount()
             for (indyPath in validIndyPaths) {
-
                 var i = 0L
-                while (actions == null && i < totalRockCombination) {
-                    actions = Board.getActions(indyPath, extendedRockPath.getCombination(i))
+                while (!Board.isValidCombination(indyPath, extendedRockPaths.getCombination(i)) && i < totalRockCombination) {
                     i++
                 }
-                if (actions != null) {
-                    System.err.println(indyPath.path)
-                    System.err.println(indyPath.cellTypes)
 
-                    extendedRockPath.getCombination(i - 1).forEach {
-                        System.err.println(it.path)
-                        System.err.println(it.cellTypes)
-                    }
+                if (i < totalRockCombination) {
+                    actions = Board.getActions(indyPath, extendedRockPaths.getCombination(i))
                     break
                 }
             }
-
             System.err.println(actions)
-
             val action = actions?.firstOrNull() ?: Action.Wait
-//            val action = Board.getRotations(validIndyPath.directions, validIndyPath.path).firstOrNull() ?: Action.Wait
             println(action)
             Board.update(action)
         }.let {
             if (it > maxTime) maxTime = it
             System.err.println("Solution found in ${it}ms")
         }
-
         System.err.println("Max turn in ${maxTime}ms")
     }
 }
