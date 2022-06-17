@@ -345,7 +345,14 @@ class Path(
 class ExtendedPath(
     val path: List<Pair<Int, Int>> = emptyList(),
     val cellTypes: List<Int> = emptyList()
-)
+) {
+    fun drop(i: Int) : ExtendedPath {
+        return ExtendedPath(
+            path.drop(i),
+            cellTypes.drop(i)
+        )
+    }
+}
 
 fun <T : Any> List<List<T>>.getCombination(i: Long): List<T> {
     val result = mutableListOf<T>()
@@ -366,35 +373,57 @@ fun <T : Any> List<List<T>>.getCombinations(): List<List<T>> {
     return List(getCombinationCount().toInt()) { getCombination(it.toLong()) }
 }
 
+class Game{
+    lateinit var indy: Position
+    var indyPaths: List<ExtendedPath> = emptyList()
+
+    fun update(indy: Position) {
+        this.indy = indy
+        if (indyPaths.isEmpty()) {
+            this.indyPaths = Board.findIndyPaths(indy).flatMap(Board::extendPath)
+        } else {
+            this.indyPaths = this.indyPaths.mapNotNull{ path ->
+                path.path.firstOrNull()?.let { ( x, y ) ->
+                    if (x == indy.x && y == indy.y) path.drop(1)
+                    else null
+                }
+            }
+        }
+    }
+}
+
 fun main() {
     val input = Scanner(System.`in`)
     Board.init(input)
-
+    val game = Game()
     var maxTime = 0L
     // game loop
     while (true) {
         val indy = Position(input)
+        game.update(indy)
         val r = input.nextInt() // the number of rocks currently in the grid.
         val rocks = List(r) { Position(input) }
 
         measureTimeMillis {
-            val validIndyPaths = Board.findIndyPaths(indy).flatMap(Board::extendPath)
-            val validIndyPath = validIndyPaths.minByOrNull { it.path.size }!!
-            val completePath = listOf(indy.x to indy.y) + validIndyPath.path
-            val completeIndyCells = listOf(Board.get(indy.x, indy.y)) + validIndyPath.cellTypes
-            val rockPaths = rocks.map { Board.findRockPaths(it, completePath, completeIndyCells) }
-            val extendedRockPaths = rockPaths.map { path ->
-                path.flatMap {
-                    Board.extendPath(it) { x, y, i ->
-                        val (xi, yi) = completePath[i]
-                        xi == x && yi == y
-                    }
-                }
-            }
+            val validIndyPaths = game.indyPaths
 
             var actions: List<Action>? = null
-            val totalRockCombination = extendedRockPaths.getCombinationCount()
+
             for (indyPath in validIndyPaths) {
+
+                val completePath = listOf(game.indy.x to game.indy.y) + indyPath.path
+                val completeIndyCells = listOf(Board.get(game.indy.x, game.indy.y)) + indyPath.cellTypes
+
+                val rockPaths = rocks.map { Board.findRockPaths(it, completePath, completeIndyCells) }
+                val extendedRockPaths = rockPaths.map { path ->
+                    path.flatMap {
+                        Board.extendPath(it) { x, y, i ->
+                            val (xi, yi) = completePath[i]
+                            xi == x && yi == y
+                        }
+                    }
+                }
+                val totalRockCombination = extendedRockPaths.getCombinationCount()
                 var i = 0L
                 while (!Board.isValidCombination(indyPath, extendedRockPaths.getCombination(i))
                     && i < totalRockCombination
