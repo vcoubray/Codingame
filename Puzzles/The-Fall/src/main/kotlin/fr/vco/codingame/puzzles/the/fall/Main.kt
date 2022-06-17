@@ -1,4 +1,4 @@
-package fr.vco.codingame.puzzles.the.fall.episode2
+package fr.vco.codingame.puzzles.the.fall
 
 import java.lang.Exception
 import java.lang.IllegalArgumentException
@@ -128,8 +128,8 @@ object Board {
 
     fun init(input: Scanner) {
         val (width, height) = input.nextLine().split(" ").map { it.toInt() }
-        this.width = width
-        this.height = height
+        Board.width = width
+        Board.height = height
         val lines = List(height) { input.nextLine().split(" ").map { it.toInt() }.toTypedArray() }
 
         grid = lines.map { it.map { n -> n.absoluteValue }.toIntArray() }.toTypedArray()
@@ -178,7 +178,7 @@ object Board {
         return validPaths
     }
 
-    fun findRockPaths(start: Position, indyPath: List<Pair<Int,Int>>, indyCells : List<Int>): List<Path> {
+    fun findRockPaths(start: Position, indyPath: List<Pair<Int, Int>>, indyCells: List<Int>): List<Path> {
         val validPaths = mutableListOf<Path>()
         val toVisit = ArrayDeque<Path>().apply { add(Path(start)) }
 
@@ -193,8 +193,8 @@ object Board {
 
             val isIndyPos = (indyPos?.first == current.entity.x && indyPos.second == current.entity.y)
 
-            val type = if(isIndyPos && indyCell != null) indyCell else  get(current.entity.x, current.entity.y)
-            val isFixed = (fixed.getOrNull(current.entity.y)?.getOrNull(current.entity.x) ?: true)  || isIndyPos
+            val type = if (isIndyPos && indyCell != null) indyCell else get(current.entity.x, current.entity.y)
+            val isFixed = (fixed.getOrNull(current.entity.y)?.getOrNull(current.entity.x) ?: true) || isIndyPos
 
 
             val neighbors = CellType.possibleExits(
@@ -233,7 +233,7 @@ object Board {
 
                 val originRockType = get(rx, ry)
                 val targetRockType = rocks[j].cellTypes[i]
-                if(x== rx && y == ry && targetType != targetRockType) return false
+                if (x == rx && y == ry && targetType != targetRockType) return false
                 val rotations = CellType.getRotations(originRockType, targetRockType)
                 actionCount += rotations.size
             }
@@ -249,7 +249,7 @@ object Board {
                 if (rocks[j].path[i] == indyPath.path[i]) return false
             }
 
-            if (actionCount > i + 1 ) return false
+            if (actionCount > i + 1) return false
 
         }
         return true
@@ -291,16 +291,19 @@ object Board {
         return actions
     }
 
-    fun extendPath(path: Path, isFixed: (x: Int, y: Int, i :Int) -> Boolean = {_,_,_->false}): List<ExtendedPath> {
+    fun extendPath(
+        path: Path,
+        isFixed: (x: Int, y: Int, i: Int) -> Boolean = { _, _, _ -> false }
+    ): List<ExtendedPath> {
         val paths = mutableListOf<List<Int>>()
 
         for (i in 0 until path.directions.size - 1) {
             val (x, y) = path.path[i]
             val type = get(x, y)
 
-            val isFixed = (fixed.getOrNull(y)?.getOrNull(x)?: true) || isFixed(x,y,i)
+            val isFixed = (fixed.getOrNull(y)?.getOrNull(x) ?: true) || isFixed(x, y, i)
 
-            if(isFixed) {
+            if (isFixed) {
                 paths.add(listOf(type))
                 continue
             }
@@ -379,8 +382,8 @@ fun main() {
             val validIndyPath = validIndyPaths.minByOrNull { it.path.size }!!
             val completePath = listOf(indy.x to indy.y) + validIndyPath.path
             val completeIndyCells = listOf(Board.get(indy.x, indy.y)) + validIndyPath.cellTypes
-            val rockPaths = rocks.map{ Board.findRockPaths(it, completePath, completeIndyCells )}
-            val extendedRockPaths = rockPaths.map{ path ->
+            val rockPaths = rocks.map { Board.findRockPaths(it, completePath, completeIndyCells) }
+            val extendedRockPaths = rockPaths.map { path ->
                 path.flatMap {
                     Board.extendPath(it) { x, y, i ->
                         val (xi, yi) = completePath[i]
@@ -393,7 +396,9 @@ fun main() {
             val totalRockCombination = extendedRockPaths.getCombinationCount()
             for (indyPath in validIndyPaths) {
                 var i = 0L
-                while (!Board.isValidCombination(indyPath, extendedRockPaths.getCombination(i)) && i < totalRockCombination) {
+                while (!Board.isValidCombination(indyPath, extendedRockPaths.getCombination(i))
+                    && i < totalRockCombination
+                ) {
                     i++
                 }
 
