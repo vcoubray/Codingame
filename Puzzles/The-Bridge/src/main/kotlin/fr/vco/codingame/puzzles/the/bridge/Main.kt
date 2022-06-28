@@ -16,9 +16,9 @@ class State(
     var speed: Int,
     val bikes: IntArray,
     var bikesCount: Int,
-    val actions : MutableList<Action> = mutableListOf()
+    val actions: MutableList<Action> = mutableListOf()
 ) {
-//    var action : Action? = null
+    //    var action : Action? = null
     private var maxLane = bikes.maxOrNull()!!
     private var minLane = bikes.minOrNull()!!
     fun copy() = State(x, speed, bikes.copyOf(bikesCount), bikesCount, actions.toMutableList())
@@ -36,7 +36,7 @@ class State(
         actions.add(action)
     }
 
-    private fun changeLane(shift : Int) {
+    private fun changeLane(shift: Int) {
         for (i in 0 until bikesCount) {
             bikes[i] += shift
         }
@@ -80,11 +80,11 @@ class Game(
         for (i in stateFinal.bikesCount - 1 downTo 0) {
             val roadToCheck = when {
                 action == Action.JUMP -> lanes[stateFinal.bikes[i]][end].toString()
-                state.bikes[i] != stateFinal.bikes[i] -> lanes[state.bikes[i]].substring(start,end) +
-                    lanes [stateFinal.bikes[i]].substring(start, end+1)
-                else -> lanes [stateFinal.bikes[i]].substring(start, end + 1)
+                state.bikes[i] != stateFinal.bikes[i] -> lanes[state.bikes[i]].substring(start, end) +
+                    lanes[stateFinal.bikes[i]].substring(start, end + 1)
+                else -> lanes[stateFinal.bikes[i]].substring(start, end + 1)
             }
-            if(roadToCheck.contains(HOLE)) {
+            if (roadToCheck.contains(HOLE)) {
                 stateFinal.bikes[i] = stateFinal.bikes[stateFinal.bikesCount - 1]
                 stateFinal.bikesCount--
             }
@@ -92,15 +92,15 @@ class Game(
         return stateFinal
     }
 
-    fun dfs(state : State) : List<Action>{
-        val toVisit = ArrayDeque<State>().apply{add(state)}
+    fun dfs(state: State): List<Action> {
+        val toVisit = ArrayDeque<State>().apply { add(state) }
         val actions = mutableListOf<Action>()
         while (toVisit.isNotEmpty()) {
             val current = toVisit.removeFirst()
             if (isVictoryState(current)) return current.actions
 //            if (isVictoryState(current)) return actions
 
-            val children = current.getValidActions().map{play(current, it)}
+            val children = current.getValidActions().map { play(current, it) }
 //            if(children.isNotEmpty()) current.action?.let(actions::add)
 //            else actions.removeLast()
             children.filter(::isValidState).forEach(toVisit::addFirst)
@@ -115,7 +115,7 @@ fun main() {
 
     while (true) {
         measureTimeMillis {
-            val state = readState(input, game )
+            val state = readState(input, game)
             val actions = game.dfs(state)
 
             println(actions.first())
@@ -123,12 +123,12 @@ fun main() {
     }
 }
 
-data class Bike(val x : Int, val y: Int, val isAlive: Boolean) {
+data class Bike(val x: Int, val y: Int, val isAlive: Boolean) {
     constructor(input: Scanner) : this(input.nextInt(), input.nextInt(), input.nextInt() == 1)
 }
 
-fun readState(input: Scanner, game: Game): State{
+fun readState(input: Scanner, game: Game): State {
     val speed = input.nextInt()
-    val bikes = List(game.bikesCount) { Bike(input) }.filter{it.isAlive}
-    return State(bikes.first().x,speed, bikes.map{it.y}.toIntArray(), bikes.size)
+    val bikes = List(game.bikesCount) { Bike(input) }.filter { it.isAlive }
+    return State(bikes.first().x, speed, bikes.map { it.y }.toIntArray(), bikes.size)
 }
