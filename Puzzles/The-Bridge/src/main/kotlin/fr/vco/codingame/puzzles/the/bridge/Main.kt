@@ -9,7 +9,7 @@ const val LANE_COUNT = 4
 const val HOLE = '0'
 
 enum class Action {
-    SLOW, DOWN, UP, JUMP, SPEED
+    SLOW, JUMP, DOWN, UP, SPEED
 }
 
 class State(
@@ -107,6 +107,7 @@ class Game(
         var bestState: State? = null
         while (toVisit.isNotEmpty() && System.currentTimeMillis() - start < timeout) {
             val current = toVisit.removeFirst()
+            if (current.bikesCount <= (bestState?.bikesCount ?: 0)) continue
             if (isVictoryState(current)) {
                 if (current.bikesCount > (bestState?.bikesCount ?: 0)) {
                     bestState = current
@@ -124,15 +125,18 @@ class Game(
 
 fun main() {
     val input = Scanner(System.`in`)
+
     val game = Game(input)
+    val state = readState(input, game)
 
-    while (true) {
-        measureTimeMillis {
-            val state = readState(input, game)
-            val actions = game.dfs(state, 140)
+    val actions: List<Action>
+    measureTimeMillis {
+        actions = game.dfs(state, 140)
+    }.let { System.err.println("Solution found in ${it}ms") }
 
-            println(actions.first())
-        }.let { System.err.println("Solution found in ${it}ms") }
+    actions.forEach { action ->
+        println(action)
+        readState(input, game) // Read inputs to avoid warning
     }
 }
 
