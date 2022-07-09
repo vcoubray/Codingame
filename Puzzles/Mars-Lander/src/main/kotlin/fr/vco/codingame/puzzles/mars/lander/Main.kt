@@ -11,6 +11,29 @@ data class Action(
     val power: Int
 )
 
+class Chromosome(val actions: Array<Action>)
+
+class GeneticAlgorithm(
+    val chromosomeSize: Int,
+    val populationSize: Int,
+    val initState: State
+) {
+
+    fun generateChromosome(): Chromosome {
+        return Chromosome((0 until chromosomeSize).map {
+            Action(
+                (-15..15).random(),
+                (-1..1).random()
+            )
+        }.toTypedArray())
+    }
+
+    fun generation(): Array<Chromosome> {
+        return (0 until populationSize).map { generateChromosome() }.toTypedArray()
+    }
+
+}
+
 
 fun minMax(value: Int, min: Int, max: Int) = max(min(value, max), min)
 
