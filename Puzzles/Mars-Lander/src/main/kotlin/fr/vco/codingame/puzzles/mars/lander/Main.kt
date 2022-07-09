@@ -5,6 +5,7 @@ import kotlin.math.*
 
 const val MARS_GRAVITY = 3.711
 
+fun minMax(value: Int, min: Int, max: Int) = max(min(value, max), min)
 
 data class Action(
     val rotate: Int,
@@ -16,15 +17,17 @@ class Chromosome(val actions: Array<Action>)
 class GeneticAlgorithm(
     val chromosomeSize: Int,
     val populationSize: Int,
-    val initState: State
+    val initialState: State
 ) {
 
     fun generateChromosome(): Chromosome {
+
+        var rotate = initialState.rotate
+        var power = initialState.power
         return Chromosome((0 until chromosomeSize).map {
-            Action(
-                (-15..15).random(),
-                (-1..1).random()
-            )
+            power = minMax(power + (-1..1).random(), 0, 4)
+            rotate = minMax(rotate + (-15..15).random(), -90, 90)
+            Action(rotate, power)
         }.toTypedArray())
     }
 
@@ -33,9 +36,6 @@ class GeneticAlgorithm(
     }
 
 }
-
-
-fun minMax(value: Int, min: Int, max: Int) = max(min(value, max), min)
 
 data class State(
     var x: Double,
@@ -58,8 +58,8 @@ data class State(
 
     fun play(action: Action) {
 
-        this.power =  minMax(power + action.power, 0, 4)
-        this.rotate = minMax(rotate + action.rotate + (-15..15).random(), -90, 90)
+        this.power = action.power
+        this.rotate = action.rotate
 
         val rad = Math.toRadians(this.rotate.toDouble())
         val newXSpeed = (this.xSpeed - this.power * sin(rad))
@@ -88,6 +88,7 @@ data class State(
     }
 
 }
+
 
 data class Segment(val start: Pair<Double, Double>, val end: Pair<Double, Double>)
 
@@ -128,18 +129,15 @@ fun main() {
     // game loop
     while (true) {
 
-        val power =  (-1..1).random()
-        val rotate = (-15..15).random()
+        val power = minMax(realState.power + (-1..1).random(), 0, 4)
+        val rotate = minMax(realState.rotate + (-15..15).random(), -90, 90)
 
         val action = Action(rotate, power)
         realState.play(listOf(action),surface)
         System.err.println(realState)
+
         println("$rotate $power")
 
         State(input)
     }
 }
-
-
-
-
