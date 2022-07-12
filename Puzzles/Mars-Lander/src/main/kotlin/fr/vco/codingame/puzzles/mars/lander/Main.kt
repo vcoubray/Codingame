@@ -7,6 +7,9 @@ import kotlin.system.measureTimeMillis
 
 const val MARS_GRAVITY = 3.711
 
+val Y_VECTOR = (-90..90).associateWith { cos( Math.toRadians(it.toDouble())) - MARS_GRAVITY }
+val X_VECTOR = (-90..90).associateWith { - sin( Math.toRadians(it.toDouble())) }
+
 fun boundedValue(value: Int, min: Int, max: Int) = when {
     value <= min -> min
     value >= max -> max
@@ -160,9 +163,9 @@ data class State(
         this.power = action.power
         this.rotate = action.rotate
 
-        val rad = Math.toRadians(this.rotate.toDouble())
-        val newXSpeed = (this.xSpeed - this.power * sin(rad))
-        val newYSPeed = (this.ySpeed + this.power * cos(rad) - MARS_GRAVITY)
+
+        val newXSpeed = (this.xSpeed + this.power * X_VECTOR[this.rotate]!!)
+        val newYSPeed = (this.ySpeed + this.power * Y_VECTOR[this.rotate]!!)
 
         this.x += (this.xSpeed + newXSpeed) * 0.5
         this.y += (this.ySpeed + newYSPeed) * 0.5
@@ -243,7 +246,7 @@ fun main() {
 
     val initialState = State(input)
 
-    val algo = GeneticAlgorithm(40, 80, surface, initialState)
+    val algo = GeneticAlgorithm(40, 20, surface, initialState)
     val actions: Array<Action>
     measureTimeMillis {
         actions = algo.findBestResult(80).actions
