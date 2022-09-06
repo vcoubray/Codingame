@@ -1,45 +1,43 @@
 package fr.vco.codingame.puzzles.mars.lander
 
-import fr.vco.codingame.puzzles.mars.lander.engine.Action
-import fr.vco.codingame.puzzles.mars.lander.engine.State
-import fr.vco.codingame.puzzles.mars.lander.engine.Surface
-import fr.vco.codingame.puzzles.mars.lander.engine.boundedValue
+import fr.vco.codingame.puzzles.mars.lander.algorithm.GeneticAlgorithm
+import fr.vco.codingame.puzzles.mars.lander.engine.*
 import java.util.*
-import kotlin.system.measureTimeMillis
-
-
 
 
 fun main() {
     val input = Scanner(System.`in`)
 
-    val surface = Surface(HEIGHT, WIDTH, input)
+    val surface = readSurface(input)
+    val initialState = readState(input)
+    val genAlgo = GeneticAlgorithm(surface, initialState)
 
-    val initialState = State(input)
-
-    val genAlgo = GeneticAlgorithm(
-        initialState,
-        surface,
-        CHROMOSOME_SIZE,
-        POPULATION_SIZE,
-        MUTATION_PROBABILITY,
-        ELITISM,
-        SPEED_MAX,
-        SPEED_WEIGHT
-    )
-    val actions: Array<Action>
-    measureTimeMillis {
-        actions = genAlgo.search(900).actions
-    }.let { System.err.println("Solution find in ${it}ms") }
-
+    val actions = genAlgo.search(TIMEOUT).actions
     var rotate = initialState.rotate
     var power = initialState.power
     actions.forEach {
         rotate = boundedValue(rotate + it.rotate, -90, 90)
         power = boundedValue(power + it.power, 0, 4)
         println("$rotate $power")
-        State(input)
+        readState(input)
     }
 
-
 }
+
+
+fun readSurface(input: Scanner) = Surface(
+    HEIGHT, WIDTH,
+    List(input.nextInt()) { Point(input.nextDouble(), input.nextDouble()) }
+        .windowed(2)
+        .map { (a, b) -> Segment(a, b) }
+)
+
+fun readState(input: Scanner) = CapsuleState(
+    input.nextDouble(),
+    input.nextDouble(),
+    input.nextDouble(),
+    input.nextDouble(),
+    input.nextInt(),
+    input.nextInt(),
+    input.nextInt()
+)

@@ -1,14 +1,14 @@
 package fr.vco.codingame.puzzles.mars.lander.engine
 
-data class Action(val rotate: Int, val power: Int) {
+import fr.vco.codingame.puzzles.mars.lander.POWER_RANGE
+import fr.vco.codingame.puzzles.mars.lander.ROTATE_RANGE
+
+
+data class Action(var rotate: Int, var power: Int) {
+    fun randomize() {
+        rotate = ROTATE_RANGE.random()
+        power = POWER_RANGE.random()
+    }
+
     override fun toString() = "$rotate $power"
 }
-
-
-fun generateAction(): Action {
-    return Action(
-        (-15..15).random(),
-        (-1..1).random()
-    )
-}
-
