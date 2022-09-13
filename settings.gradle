@@ -1,5 +1,6 @@
 rootProject.name = 'Codingame'
 
+include 'Puzzles:Blunder-Episode-3'
 include 'Puzzles:CGX-Formatter'
 include 'Puzzles:DontPanic-episode2'
 include 'Puzzles:Genome-Sequencing'
