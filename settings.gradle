@@ -1,5 +1,6 @@
 rootProject.name = 'Codingame'
 
+include 'Optimisations:Code-vs-Zombies'
 include 'Puzzles:Blunder-Episode-3'
 include 'Puzzles:CGX-Formatter'
 include 'Puzzles:DontPanic-episode2'
