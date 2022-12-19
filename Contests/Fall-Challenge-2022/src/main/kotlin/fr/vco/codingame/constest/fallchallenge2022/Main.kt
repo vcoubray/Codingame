@@ -2,7 +2,6 @@ package fr.vco.codingame.constest.fallchallenge2022
 
 import java.util.*
 import kotlin.collections.ArrayDeque
-import kotlin.math.absoluteValue
 
 fun log(message: Any?) = System.err.println(message)
 
@@ -26,7 +25,7 @@ fun main() {
         for (zone in zones) {
             log("${zone.tiles.size} - ${zone.tiles.first().pos}")
             if (zone.myTileCount == 0) continue
-//            if (zone.myRobotCount == 0) continue
+            if (zone.myTileCount == zone.tiles.size) continue
             val shouldSpawn = !(zone.myRobotCount > 1 && zone.tiles.none { it.owner == Owner.OPP && it.units > 0 })
 
             // Build
@@ -39,7 +38,7 @@ fun main() {
                     myMatter -= 10
                     totalRecycler++
                     recyclerCount++
-                }?: break
+                } ?: break
             }
 
             // Moves
@@ -50,69 +49,22 @@ fun main() {
                     targets.remove(target)
                     target?.let { actions.add(Action.Move(1, robot.pos, target.pos)) }
                 }
-
             }
 
             // Spawn
             if (shouldSpawn && myMatter >= 10) {
-                zone.tiles.filter { it.owner == Owner.ME && it.canSpawn }
-                    .sortedBy { board.searchPath(it.id) { target -> board.tiles[target].owner == Owner.OPP }.size }
-                    .take(myMatter / 10)
-                    .forEach { actions.add(Action.Spawn(1, it.pos)) }
+                zone.tiles.asSequence().filter { it.owner == Owner.ME && it.canSpawn }
+                    .map { it to board.searchPath(it.id) { target -> board.tiles[target].owner == Owner.OPP }.size }
+                    .filter { (_, pathSize) -> pathSize > 0 }
+                    .sortedBy { (_, pathSize) -> pathSize }
+                    .take(myMatter / 10).toList()
+                    .forEach { (tile, _) -> actions.add(Action.Spawn(1, tile.pos)) }
             }
         }
 
         println(actions.takeIf { it.isNotEmpty() }?.joinToString(";") ?: Action.Wait)
     }
 }
-
-enum class Owner {
-    ME, OPP, NEUTRAL;
-
-    companion object {
-        fun fromInt(value: Int) = when (value) {
-            1 -> ME
-            0 -> OPP
-            -1 -> NEUTRAL
-            else -> throw Exception("oh no")
-        }
-    }
-}
-
-class Tile(
-    val id: Int,
-    val pos: Position,
-    var scrapAmount: Int = 0,
-    var owner: Owner = Owner.NEUTRAL,
-    var units: Int = 0,
-    var recycler: Boolean = false,
-    var canBuild: Boolean = false,
-    var canSpawn: Boolean = false,
-    var inRangeOfRecycler: Boolean = false,
-    var neighbours: List<Tile> = emptyList(),
-) {
-    fun dist(tile: Tile) = pos.dist(tile.pos)
-
-    fun recyclerScore() =
-        if (scrapAmount <= 5 || inRangeOfRecycler || neighbours.any { it.inRangeOfRecycler }) 0
-        else scrapAmount + neighbours.sumOf { it.scrapAmount }
-}
-
-data class Position(val x: Int, val y: Int) {
-    operator fun plus(pos: Position) = Position(x + pos.x, y + pos.y)
-    fun dist(pos: Position) = (x - pos.x).absoluteValue + (y - pos.y).absoluteValue
-    override fun toString() = "$x $y"
-}
-
-enum class Direction(val direction: Position) {
-    UP(Position(0, -1)),
-    DOWN(Position(0, 1)),
-    LEFT(Position(-1, 0)),
-    RIGHT(Position(1, 0))
-}
-
-fun Position.move(direction: Direction) = this + direction.direction
-
 class Board(val height: Int, val width: Int) {
 
     val grid = List(height) { y -> List(width) { x -> Tile(y * width + x, Position(x, y)) } }
@@ -120,12 +72,19 @@ class Board(val height: Int, val width: Int) {
 
     lateinit var oppTiles: List<Tile>
 
+
+    private val directions = listOf(
+        Position(0, -1),
+        Position(0, 1),
+        Position(-1, 0),
+        Position(1, 0)
+    )
+
     init {
         tiles.forEach { tile ->
-            tile.neighbours = Direction.values().map(tile.pos::move).mapNotNull(::get)
+            tile.neighbours = directions.map(tile.pos::plus).mapNotNull(::get)
         }
     }
-
 
     operator fun get(position: Position) = grid.getOrNull(position.y)?.getOrNull(position.x)
 
@@ -144,11 +103,6 @@ class Board(val height: Int, val width: Int) {
             }
         }
         oppTiles = tiles.filter { it.owner == Owner.OPP }
-    }
-
-
-    fun tileMoveScore(tile: Tile): Int {
-        return oppTiles.sumOf(tile::dist)
     }
 
     fun computeZones(): List<Zone> {
@@ -188,24 +142,7 @@ class Board(val height: Int, val width: Int) {
     private var currentVisit = 0
 
     fun searchPath(origin: Int, target: Int): List<Int> {
-        currentVisit++
-        val toVisit = ArrayDeque<Int>().apply { addFirst(origin) }
-
-
-        while (toVisit.isNotEmpty()) {
-            val currentId = toVisit.removeFirst()
-            if (currentId == target) return getPath(origin, target)
-            if (visited[currentId].visitedCount >= currentVisit) continue
-            visited[currentId].visitedCount = currentVisit
-            val current = tiles[currentId]
-            current.neighbours.forEach { neighbor ->
-                if (visited[neighbor.id].visitedCount < currentVisit && neighbor.scrapAmount > 0 && !neighbor.recycler) {
-                    visited[neighbor.id].from = currentId
-                    toVisit.add(neighbor.id)
-                }
-            }
-        }
-        return emptyList()
+        return searchPath(origin) { it == target }
     }
 
 
@@ -241,31 +178,3 @@ class Board(val height: Int, val width: Int) {
     }
 }
 
-class Zone {
-    var oppTileCount = 0
-    var oppRobotCount = 0
-    var myTileCount = 0
-    var myRobotCount = 0
-    val tiles = mutableListOf<Tile>()
-
-    fun addTile(tile: Tile) {
-        tiles.add(tile)
-        when (tile.owner) {
-            Owner.OPP -> {
-                oppTileCount++
-                oppRobotCount += tile.units
-            }
-
-            Owner.ME -> {
-                myTileCount++
-                myRobotCount += tile.units
-            }
-
-            else -> {
-                //Do nothing
-            }
-        }
-    }
-
-
-}
