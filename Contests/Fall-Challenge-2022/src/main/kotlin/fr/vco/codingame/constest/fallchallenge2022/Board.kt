@@ -74,9 +74,9 @@ class Board(val height: Int, val width: Int) {
         return zone
     }
 
-    data class BfsNode(var visitedCount: Int, var from: Int)
+    data class BfsNode(var visitedCount: Int, var from: Int, var depth: Int)
 
-    private val visited = List(tiles.size) { BfsNode(0, -1) }
+    private val visited = List(tiles.size) { BfsNode(0, -1, 0) }
     private var currentVisit = 0
 
     fun searchPath(origin: Int, target: Int): List<Int> {
@@ -87,7 +87,7 @@ class Board(val height: Int, val width: Int) {
     fun searchPath(origin: Int, target: (Int) -> Boolean): List<Int> {
         currentVisit++
         val toVisit = ArrayDeque<Int>().apply { addFirst(origin) }
-
+        visited[origin].depth = 0
         while (toVisit.isNotEmpty()) {
             val currentId = toVisit.removeFirst()
             if (target(currentId)) return getPath(origin, currentId)
@@ -95,8 +95,11 @@ class Board(val height: Int, val width: Int) {
             visited[currentId].visitedCount = currentVisit
             val current = tiles[currentId]
             current.neighbours.forEach { neighbor ->
-                if (visited[neighbor.id].visitedCount < currentVisit && neighbor.scrapAmount > 0 && !neighbor.recycler) {
+                if (visited[neighbor.id].visitedCount < currentVisit
+                    && neighbor.canCross(visited[currentId].depth + 1)
+                ) {
                     visited[neighbor.id].from = currentId
+                    visited[neighbor.id].depth = visited[currentId].depth + 1
                     toVisit.add(neighbor.id)
                 }
             }

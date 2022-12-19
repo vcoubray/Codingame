@@ -52,7 +52,7 @@ fun main() {
 
             // Spawn
             if (shouldSpawn && myMatter >= 10) {
-                zone.tiles.asSequence().filter { it.owner == Owner.ME && it.canSpawn }
+                zone.tiles.asSequence().filter { it.owner == Owner.ME && it.canSpawn() }
                     .map { it to board.searchPath(it.id) { target -> board.tiles[target].owner == Owner.OPP }.size }
                     .filter { (_, pathSize) -> pathSize > 0 }
                     .sortedBy { (_, pathSize) -> pathSize }
