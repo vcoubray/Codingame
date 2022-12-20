@@ -25,12 +25,12 @@ fun main() {
             log("${zone.tiles.size} - ${zone.tiles.first().pos}")
             if (zone.myTileCount == 0) continue
             if (zone.myTileCount == zone.tiles.size) continue
-            val shouldSpawn = !(zone.myRobotCount > 1 && zone.tiles.none { it.owner == Owner.OPP && it.units > 0 })
+            val shouldSpawn = zone.myRobotCount == 0 || zone.tiles.any { it.owner == Owner.OPP && it.units > 0 }
 
             // Build
-            val buildTiles = zone.tiles.filter { it.canBuild && it.recyclerScore() > 0 }
+            val buildTiles = zone.tiles.filter { it.canBuild && it.recyclerScore() > 25 }
             while (myMatter >= 10 && recyclerCount < 5 && totalRecycler < 12) {
-                buildTiles.filterNot { it.recycler }.maxByOrNull { it.recyclerScore() }?.let {
+                buildTiles.filterNot { it.recycler && it.recyclerScore() > 25 }.maxByOrNull { it.recyclerScore() }?.let {
                     actions.add(Action.Build(it.pos))
                     it.recycler = true
                     it.neighbours.forEach { n -> n.inRangeOfRecycler = true }
