@@ -7,6 +7,8 @@ class Zone {
     var myRobotCount = 0
     val tiles = mutableListOf<Tile>()
 
+    val recyclerTargets = mutableListOf<Tile>()
+
     fun addTile(tile: Tile) {
         tiles.add(tile)
         when (tile.owner) {

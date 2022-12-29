@@ -12,10 +12,15 @@ class Tile(
     var canBuild: Boolean = false,
     var canSpawn: Boolean = false,
     var inRangeOfRecycler: Boolean = false,
-    var neighbours: List<Tile> = emptyList(),
-) {
-    fun dist(tile: Tile) = pos.dist(tile.pos)
 
+
+) {
+    var neighbours: List<Tile> = emptyList()
+    var shouldBeMine: Boolean = false
+    var minDistMine : Int = 0
+    var minDistOpp: Int = 0
+
+    fun dist(tile: Tile) = pos.dist(tile.pos)
     fun canSpawn() = canSpawn && (!inRangeOfRecycler || scrapAmount > 2)
 
     fun recyclerScore() =
