@@ -14,25 +14,38 @@ class Tile(
     var inRangeOfRecycler: Boolean = false,
 
 
-) {
+    ) {
     var neighbours: List<Tile> = emptyList()
     var shouldBeMine: Boolean = false
-    var minDistMine : Int = 0
+    var minDistMine: Int = 0
     var minDistOpp: Int = 0
+
+    var turnBeforeDestroyed = Int.MAX_VALUE
+    var scrapToRecycle: Int = 0
+    var accessible = true
+    var destroyedNeighboursCount = 0
+
+    fun compute() {
+        this.turnBeforeDestroyed = when {
+            recycler -> scrapAmount
+            inRangeOfRecycler && neighbours.any { it.recycler && it.scrapAmount >= scrapAmount } -> scrapAmount
+            else -> Int.MAX_VALUE
+        }
+
+        this.accessible = !recycler && scrapAmount > 0 && !(inRangeOfRecycler && scrapAmount == 1)
+        this.scrapToRecycle = scrapAmount + neighbours.sumOf { min(it.scrapAmount, scrapAmount) }
+        this.destroyedNeighboursCount = neighbours.count { it.scrapAmount <= scrapAmount }
+
+    }
 
     fun dist(tile: Tile) = pos.dist(tile.pos)
     fun canSpawn() = canSpawn && (!inRangeOfRecycler || scrapAmount > 2)
 
-    fun recyclerScore() =
-        if (scrapAmount <= 5 || inRangeOfRecycler || neighbours.any { it.inRangeOfRecycler }) 0
-        else scrapToRecycle()
-
-    fun scrapToRecycle() = scrapAmount + neighbours.sumOf{ min(it.scrapAmount, scrapAmount) }
-
-    fun turnBeforeDisappear() = if (inRangeOfRecycler && neighbours.any{it.recycler && it.scrapAmount >= scrapAmount}) scrapAmount
+    fun turnBeforeDisappear() =
+        if (inRangeOfRecycler && neighbours.any { it.recycler && it.scrapAmount >= scrapAmount }) scrapAmount
         else Int.MAX_VALUE
 
-    fun canCross(turn: Int = 0) : Boolean {
+    fun canCross(turn: Int = 0): Boolean {
         return when {
             recycler -> false
             scrapAmount == 0 -> false
