@@ -22,6 +22,7 @@ include(
     "Contests:Code4Life",
     "Contests:Spring-Challenge-2021",
     "Contests:Spring-Challenge-2022",
+    "Contests:Spring-Challenge-2023",
     "Contests:Fall-Challenge-2022",
     "Contests:Tic-Tac-Toe"
 )
