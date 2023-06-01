@@ -1,6 +1,6 @@
 # Codingame
 
-My solutions of [Condigame](https://www.codingame.com/) Puzzles and Contests 
+My solutions of [Codingame](https://www.codingame.com/) Puzzles and Contests 
 
 # Usage 
 

@@ -140,12 +140,28 @@ object Game {
     fun computePathScore(beaconsPath: List<Int>): Double {
         // Compute paths Power opp (current path)
         // Compute paths Power for me (beaconList)
+
+
+        val antsList = me.ants.mapIndexed { i, _ -> i }
+            .filter { me.ants[it] > 0 }
+
         // Compute cell score (base distances, EggNeeded, ant distance, remaining resource)
+        val cellScores = cells.map { cell ->
+            val resources = min(cell.resources, beaconsPath[cell.id])
+            val resourceScore = if (needMoreAnts() && cell.type == TYPE_EGGS) resources * 2
+            else resources
+
+            val turnToReach = antsList.minOf { i -> max(1.0, distances[i][cell.id].toDouble()) }
+
+            resourceScore / turnToReach
+
+        }
+
         // Compute attack Chain
         // Compute eggs Gained (bonus if eggNeeded, Bonus if disputed Cell)
         // Compute Crystal Gained (Bonus if near of My ant, bonus if disputed Cell)
 
-        return 0.0
+        return cellScores.sum()
     }
 
     fun updatePathValue(player: Player) {
@@ -178,10 +194,10 @@ object Game {
 fun Gain.isBetter(gain: Gain): Boolean {
     return if (Game.needMoreAnts()) {
         (eggs > gain.eggs) ||
-            eggs == gain.eggs && crystals > gain.crystals
+                eggs == gain.eggs && crystals > gain.crystals
     } else {
         (crystals > gain.crystals) ||
-            crystals == gain.crystals && eggs > gain.eggs
+                crystals == gain.crystals && eggs > gain.eggs
     }
 }
 
@@ -190,36 +206,44 @@ fun main() {
 
     Game.init(input)
 
-
-
     // game loop
     while (true) {
         // Update Board
         Game.update(input)
         val start = System.currentTimeMillis()
         var beacons = List(Game.numberOfCells) { 0 }
-        var gain = Game.computePlayerGains(Game.me, beacons)
+//        var gain = Game.computePlayerGains(Game.me, beacons)
+        var pathScore = Game.computePathScore(beacons)
         val defaultBeacons = Game.cells.generateClassicPath(Game.me.bases, Game.me.totalAnts)
-        val defaultGain = Game.computePlayerGains(Game.me, defaultBeacons)
-        if (defaultGain.isBetter(gain)) {
+//        val defaultGain = Game.computePlayerGains(Game.me, defaultBeacons)
+        val defaultPathScore = Game.computePathScore(defaultBeacons)
+        if (defaultPathScore > pathScore) {
             beacons = defaultBeacons
-            gain = defaultGain
+            pathScore = defaultPathScore
         }
-        log("Default Gain : $defaultGain")
-        repeat(250) {
+
+        log("Default Score : $defaultPathScore")
+        repeat(100) {
             val randomBeacon = Game.cells.generateRandomPath(Game.me.bases, Game.me.totalAnts)
-            val randomGain = Game.computePlayerGains(Game.me, randomBeacon)
-            if (randomGain.isBetter(gain)) {
+//            val randomGain = Game.computePlayerGains(Game.me, randomBeacon)
+            val randomPathScore = Game.computePathScore(randomBeacon)
+//            if (randomGain.isBetter(gain)) {
+//                beacons = randomBeacon
+//                gain = randomGain
+//            }
+
+            if (randomPathScore > pathScore) {
                 beacons = randomBeacon
-                gain = randomGain
+                pathScore = randomPathScore
             }
         }
 
         val actions = beacons.mapIndexedNotNull { i, it -> if (it > 0) beacon(i, it) else null }.toMutableList()
-        //val actions = defaultBeacons.mapIndexedNotNull { i, it -> if (it > 0) beacon(i, it) else null }.toMutableList()
+//        val actions = defaultBeacons.mapIndexedNotNull { i, it -> if (it > 0) beacon(i, it) else null }.toMutableList()
 //        val actions = mutableListOf(line(6, 0,1))
 
-        log("Best gain : $gain")
+//        log("Best gain : $gain")
+        log("Best gain : $pathScore")
         actions.add(message("${System.currentTimeMillis() - start}ms"))
         println(actions.joinToString(";"))
         Game.firstTurn = false
