@@ -70,7 +70,7 @@ fun List<Cell>.generateRandomPath(bases: List<Int>, antsCount: Int): List<Int> {
         val target = targets.random()
         targets.remove(target)
 
-        if(beacons[target.id]> 0)
+        if(beacons[target.id] > 0)
             continue
 
         val start = starts.minBy { Game.distances[it][target.id] }
@@ -79,8 +79,11 @@ fun List<Cell>.generateRandomPath(bases: List<Int>, antsCount: Int): List<Int> {
             continue
         }
         val maxPower = remAnts / path.size
-        val power = min(beacons[start], (1..maxPower).random())
-
+        val power = if(beacons[start] == 0) {
+            (1..maxPower).random()
+        } else {
+            min(beacons[start], (1..maxPower).random())
+        }
         remAnts -= path.size * power
 
         starts.add(target.id)

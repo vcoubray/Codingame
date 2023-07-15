@@ -10,8 +10,8 @@ class Player {
 
 
     var distanceFromBases: List<Int> = emptyList()
-    var pathValues: MutableList<Int> = mutableListOf()
-    val toVisit = PriorityQueue<Int> { a, b -> pathValues[b] - pathValues[a] }
+    var pathPower: MutableList<Int> = mutableListOf()
+    val toVisit = PriorityQueue<Int> { a, b -> pathPower[b] - pathPower[a] }
 
 
     fun init(input: Scanner, numberOfBases: Int, cells: List<Cell>, distances: List<List<Int>>) {
