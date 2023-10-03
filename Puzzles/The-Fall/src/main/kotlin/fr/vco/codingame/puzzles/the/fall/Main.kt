@@ -1,9 +1,6 @@
 package fr.vco.codingame.puzzles.the.fall
 
-import java.lang.Exception
-import java.lang.IllegalArgumentException
 import java.util.*
-import kotlin.math.absoluteValue
 import kotlin.system.measureTimeMillis
 
 enum class Direction(val x: Int, val y: Int) {
@@ -13,100 +10,9 @@ enum class Direction(val x: Int, val y: Int) {
     NONE(0, 0)
 }
 
+data class Position(val index: Int, val dir: Direction)
+
 enum class Rotation { RIGHT, LEFT }
-
-data class Position(
-    val x: Int,
-    val y: Int,
-    val dir: Direction,
-) {
-    constructor(input: Scanner) : this(input.nextInt(), input.nextInt(), Direction.valueOf(input.next()))
-
-    operator fun plus(dir: Direction) = Position(
-        x = x + dir.x,
-        y = y + dir.y,
-        dir = dir
-    )
-}
-
-object CellType {
-
-    fun rotate(type: Int, rotation: Rotation) = when (type) {
-        2 -> 3
-        3 -> 2
-        4 -> 5
-        5 -> 4
-        6 -> if (rotation == Rotation.RIGHT) 7 else 9
-        7 -> if (rotation == Rotation.RIGHT) 8 else 6
-        8 -> if (rotation == Rotation.RIGHT) 9 else 7
-        9 -> if (rotation == Rotation.RIGHT) 6 else 8
-        10 -> if (rotation == Rotation.RIGHT) 11 else 13
-        11 -> if (rotation == Rotation.RIGHT) 12 else 10
-        12 -> if (rotation == Rotation.RIGHT) 13 else 11
-        13 -> if (rotation == Rotation.RIGHT) 10 else 12
-        else -> type
-    }
-
-    fun getRotations(origin: Int, target: Int): List<Rotation> {
-        var rotateCount = 0
-        var currentType = origin
-        while (currentType != target && rotateCount < 3) {
-            currentType = rotate(currentType, Rotation.RIGHT)
-            rotateCount++
-        }
-        return when (rotateCount) {
-            0 -> listOf()
-            1 -> listOf(Rotation.RIGHT)
-            2 -> listOf(Rotation.RIGHT, Rotation.RIGHT)
-            3 -> listOf(Rotation.LEFT)
-            else -> throw IllegalArgumentException("[$origin] can't be rotate in [$target]")
-        }
-    }
-
-
-    fun outputDirection(type: Int?, inputDir: Direction): Direction {
-        return when (type) {
-            null -> Direction.NONE
-            0 -> Direction.NONE
-            1 -> Direction.TOP
-            2 -> if (inputDir == Direction.LEFT || inputDir == Direction.RIGHT) inputDir else Direction.NONE
-            3 -> if (inputDir == Direction.TOP) Direction.TOP else Direction.NONE
-            4 -> if (inputDir == Direction.RIGHT) Direction.TOP else if (inputDir == Direction.TOP) Direction.RIGHT else Direction.NONE
-            5 -> if (inputDir == Direction.LEFT) Direction.TOP else if (inputDir == Direction.TOP) Direction.LEFT else Direction.NONE
-            6 -> if (inputDir == Direction.LEFT || inputDir == Direction.RIGHT) inputDir else Direction.NONE
-            7 -> if (inputDir == Direction.TOP || inputDir == Direction.RIGHT) Direction.TOP else Direction.NONE
-            8 -> if (inputDir == Direction.RIGHT || inputDir == Direction.LEFT) Direction.TOP else Direction.NONE
-            9 -> if (inputDir == Direction.LEFT || inputDir == Direction.TOP) Direction.TOP else Direction.NONE
-            10 -> if (inputDir == Direction.TOP) Direction.RIGHT else Direction.NONE
-            11 -> if (inputDir == Direction.TOP) Direction.LEFT else Direction.NONE
-            12 -> if (inputDir == Direction.RIGHT) Direction.TOP else Direction.NONE
-            13 -> if (inputDir == Direction.LEFT) Direction.TOP else Direction.NONE
-            else -> throw Exception("Should not happen !")
-        }
-    }
-
-    fun possibleExits(type: Int, dir: Direction, isFixed: Boolean) =
-        if (isFixed) listOf(outputDirection(type, dir))
-        else if (dir == Direction.TOP) {
-            when (type) {
-                1 -> listOf(Direction.TOP)
-                2, 3, 6, 7, 8, 9 -> listOf(Direction.TOP, Direction.NONE)
-                4, 5 -> listOf(Direction.RIGHT, Direction.LEFT)
-                10, 11, 12, 13 -> listOf(Direction.RIGHT, Direction.LEFT, Direction.NONE)
-                0 -> listOf(Direction.NONE)
-                else -> throw Exception("Should not happen !")
-            }
-        } else {
-            when (type) {
-                1 -> listOf(Direction.TOP)
-                4, 5, 10, 11, 12, 13 -> listOf(Direction.TOP, Direction.NONE)
-                2, 3 -> listOf(dir, Direction.NONE)
-                6, 7, 8, 9 -> listOf(dir, Direction.TOP, Direction.NONE)
-                0 -> listOf(Direction.NONE)
-                else -> throw Exception("Should not happen !")
-            }
-        }
-}
 
 sealed interface Action {
     object Wait : Action {
@@ -118,135 +24,179 @@ sealed interface Action {
     }
 }
 
-object Board {
-    var width: Int = 0
-    var height: Int = 0
-    var exitX: Int = 0
-    var exitY: Int = 0
-    lateinit var grid: Array<IntArray>
-    lateinit var fixed: Array<BooleanArray>
+data class Entrance(
+    val position: Position,
+//    val defaultPath: List<Int>,
+    val paths: List<Path>,
+    val used: Boolean = false,
+)
 
-    fun init(input: Scanner) {
-        val (width, height) = input.nextLine().split(" ").map { it.toInt() }
-        Board.width = width
-        Board.height = height
-        val lines = List(height) { input.nextLine().split(" ").map { it.toInt() }.toTypedArray() }
+class Rock(
+    val start: Position,
+    val paths: List<Path>,
+) {
 
-        grid = lines.map { it.map { n -> n.absoluteValue }.toIntArray() }.toTypedArray()
-        fixed = lines.map { it.map { n -> n <= 0 }.toBooleanArray() }.toTypedArray()
-        exitX = input.nextInt() // the coordinate along the X axis of the exit.
-        exitY = height - 1
-    }
 
-    fun get(x: Int, y: Int) = grid.getOrNull(y)?.getOrNull(x) ?: 0
+//    fun getRockPaths(indyPath: Path) : List<RockPath> {
+//        paths.mapNotNull { path ->
+//            val offset = path.getCrossingOffset(indyPath)
+//            if (offset < 0) return null
+//            val realPaths = path.toRealPath(indyPath.path)
+//            realPaths.forEach{it ->
+//
+//            }
+//        }
+//
+//        return emptyList()
+//    }
 
-    fun isExit(x: Int, y: Int) = x == exitX && y == exitY
-    fun isExit(position: Position) = isExit(position.x, position.y)
+}
 
-    fun update(action: Action) {
-        if (action is Action.Rotate) {
-            grid[action.y][action.x] = CellType.rotate(grid[action.y][action.x], action.rotation)
+class RockPath(
+    val offset: Int,
+    val cellTypes: List<Int>,
+    val path: List<Int>,
+) {
+    val size = path.size + offset
+    fun getCellTypeAt(i: Int) = cellTypes.getOrNull(i) ?: -1
+    fun getCellAt(i: Int) = path.getOrNull(i) ?: -1
+}
+
+class Board(
+    private val width: Int,
+    private val height: Int,
+    private val exit: Int,
+    val cellTypes: MutableList<Int>,
+    val fixedMap: List<Boolean>,
+    private val neighbors: Map<Direction, List<List<Pair<Direction, Int>>>>,
+) {
+
+    val entrances = initEntrances()
+
+    private fun initEntrances() =
+        cellTypes.mapIndexedNotNull { i, cellType ->
+            val x = i % width
+            val y = i / width
+            when {
+                y == 0 && CELL_TYPES[cellType].exitDirection(Direction.TOP) != Direction.NONE ->
+                    Position(i, Direction.TOP)
+
+                x == 0 && CELL_TYPES[cellType].exitDirection(Direction.LEFT) != Direction.NONE ->
+                    Position(i, Direction.LEFT)
+
+                x == width - 1 && CELL_TYPES[cellType].exitDirection(Direction.RIGHT) != Direction.NONE ->
+                    Position(i, Direction.RIGHT)
+
+                else -> null
+            }
+        }.map { pos ->
+            Entrance(pos, findRockPaths(pos))
         }
-    }
+
 
     fun findIndyPaths(start: Position): List<Path> {
+
         val validPaths = mutableListOf<Path>()
-        val toVisit = ArrayDeque<Path>().apply { add(Path(start)) }
+        val toVisit = ArrayDeque<Path>().apply { add(Path(start.index, start.dir)) }
 
         while (toVisit.isNotEmpty()) {
             val current = toVisit.pop()
 
-            if (isExit(current.entity)) {
+            if (current.currentCell == exit) {
                 validPaths.add(current)
                 continue
             }
 
-            val type = get(current.entity.x, current.entity.y)
-            val neighbors = CellType.possibleExits(
-                type,
-                current.entity.dir,
-                fixed.getOrNull(current.entity.y)?.getOrNull(current.entity.x) ?: true
-            )
-
-            neighbors.filterNot { it == Direction.NONE }.forEach {
-                val indy = current.entity + it
-                val path = current.path + (indy.x to indy.y)
-                val direction = current.directions + it
-                toVisit.add(Path(indy, path, direction))
-            }
+            neighbors[current.currentDirection]!![current.currentCell]
+                .filterNot { (dir, _) -> dir == Direction.NONE }
+                .forEach { (dir, cell) ->
+                    val path = current.path + cell
+                    val directions = current.directions + dir
+                    toVisit.add(Path(cell, dir, path, directions))
+                }
         }
         return validPaths
     }
 
-    fun findRockPaths(start: Position, indyPath: List<Pair<Int, Int>>, indyCells: List<Int>): List<Path> {
+    fun update(action: Action) {
+        if (action is Action.Rotate) {
+            val type = cellTypes[action.y * width + action.x]
+            cellTypes[action.y * width + action.x] = CELL_TYPES[type].rotate[action.rotation]!!
+        }
+    }
+
+    fun findRockPaths(start: Position): List<Path> {
         val validPaths = mutableListOf<Path>()
-        val toVisit = ArrayDeque<Path>().apply { add(Path(start)) }
+        val toVisit = ArrayDeque<Path>().apply { add(Path(start.index, start.dir)) }
 
         while (toVisit.isNotEmpty()) {
             val current = toVisit.pop()
-            val indyPos = indyPath.getOrNull(current.path.size - 1)
-            val indyCell = indyCells.getOrNull(current.path.size - 1)
-            if (current.entity.dir == Direction.NONE) {
+
+            if (current.currentDirection == Direction.NONE) {
                 if (current.path.size > 1) validPaths.add(current)
                 continue
             }
 
-            val isIndyPos = (indyPos?.first == current.entity.x && indyPos.second == current.entity.y)
-
-            val type = if (isIndyPos && indyCell != null) indyCell else get(current.entity.x, current.entity.y)
-            val isFixed = (fixed.getOrNull(current.entity.y)?.getOrNull(current.entity.x) ?: true) || isIndyPos
-
-
-            val neighbors = CellType.possibleExits(
-                type,
-                current.entity.dir,
-                isFixed
-            )
-
-            neighbors.forEach {
-                val rock = current.entity + it
-                val path = current.path + (rock.x to rock.y)
-                val direction = current.directions + it
-
-                toVisit.add(Path(rock, path, direction))
-            }
+            neighbors[current.currentDirection]!![current.currentCell]
+                .forEach { (dir, cell) ->
+                    val path = current.path + cell
+                    val directions = current.directions + dir
+                    toVisit.add(Path(cell, dir, path, directions))
+                }
         }
         return validPaths
     }
 
-    fun isValidCombination(indyPath: ExtendedPath, rockPaths: List<ExtendedPath>): Boolean {
+    fun isValidRealPathCombination(indyPath: RealPath, rockPaths: List<RealPath>): Boolean {
+        val workingCellTypes = this.cellTypes.toMutableList()
         var rockCount = rockPaths.size
         val rocks = rockPaths.toTypedArray()
 
         var actionCount = 0
         for (i in 0 until indyPath.cellTypes.size) {
-            val (x, y) = indyPath.path[i]
+            val cellIndex = indyPath.path[i]
+            val originType = workingCellTypes[cellIndex]
             val targetType = indyPath.cellTypes[i]
-            val originType = get(x, y)
 
             if (targetType != originType) {
-                actionCount += CellType.getRotations(originType, targetType).size
+                actionCount += getRotations(originType, targetType).size
+                workingCellTypes[cellIndex] = targetType
             }
 
             for (j in 0 until rockCount) {
-                val (rx, ry) = rocks[j].path[i]
+                val rockCellIndex = rocks[j].path[i]
 
-                val originRockType = get(rx, ry)
+                val originRockType = workingCellTypes[rockCellIndex]
                 val targetRockType = rocks[j].cellTypes[i]
-                if (x == rx && y == ry && targetType != targetRockType) return false
-                val rotations = CellType.getRotations(originRockType, targetRockType)
-                actionCount += rotations.size
+                if (cellIndex == rockCellIndex && targetType != targetRockType) return false
+                if (i > 0) {
+                    val cellIndexPrev = indyPath.path[i - 1]
+                    val rockCellIndexPrev = rocks[j].path[i - 1]
+                    if (cellIndex == rockCellIndexPrev && cellIndexPrev == rockCellIndex) return false
+                }
+                if (originRockType != targetRockType) {
+                    actionCount = getRotations(originRockType, targetRockType).size
+                    workingCellTypes[rockCellIndex] = targetRockType
+                }
             }
 
+            // remove rocks that crash into another one
+            for (j in rockCount - 1 downTo 0) {
+                if (j >= 1) {
+                    for (k in j - 1 downTo 0)
+                        if (rocks[j].path[i] == rocks[k].path[i]) {
+                            rocks[j] = rocks[rockCount - 1]
+                            rocks[k] = rocks[rockCount - 2]
+                            rockCount -= 2
+                        }
+                }
+            }
+            // Remove rocks that crash into a wall
             for (j in rockCount - 1 downTo 0) {
                 if (rocks[j].cellTypes.size <= i + 1) {
                     rocks[j] = rocks[rockCount - 1]
                     rockCount--
                 }
-            }
-
-            for (j in 0 until rockCount) {
-                if (rocks[j].path[i] == indyPath.path[i]) return false
             }
 
             if (actionCount > i + 1) return false
@@ -255,191 +205,116 @@ object Board {
         return true
     }
 
-    fun getActions(indyPath: ExtendedPath, rockPaths: List<ExtendedPath>): List<Action> {
+    fun getActions(indyPath: RealPath, rockPaths: List<RealPath>): List<Action> {
         var rockCount = rockPaths.size
         val rocks = rockPaths.toTypedArray()
 
         val actions = mutableListOf<Action>()
 
-
         for (i in 0 until indyPath.cellTypes.size) {
-            val (x, y) = indyPath.path[i]
+            val cellIndex = indyPath.path[i]
             val targetType = indyPath.cellTypes[i]
-            val originType = get(x, y)
+            val originType = cellTypes[cellIndex]
 
             if (targetType != originType) {
-                CellType.getRotations(originType, targetType).forEach { actions.add(Action.Rotate(x, y, it)) }
+                getRotations(originType, targetType).forEach {
+                    actions.add(
+                        Action.Rotate(
+                            cellIndex % width,
+                            cellIndex / width,
+                            it
+                        )
+                    )
+                }
             }
 
-            for (j in 0 until rockCount) {
-                val (rx, ry) = rocks[j].path[i]
-                val originRockType = get(rx, ry)
-                val targetRockType = rocks[j].cellTypes[i]
-                val rotations = CellType.getRotations(originRockType, targetRockType)
+            repeat(rockCount) { ir ->
+                val rockCellIndex = rocks[ir].path[i]
+                val rocKTargetType = rocks[ir].cellTypes[i]
+                val rockOriginType = cellTypes[rockCellIndex]
 
-                rotations.forEach { actions.add(Action.Rotate(rx, ry, it)) }
-            }
+                if (rocKTargetType != rockOriginType) {
+                    getRotations(rockOriginType, rocKTargetType).forEach {
+                        actions.add(
+                            Action.Rotate(
+                                rockCellIndex % width,
+                                rockCellIndex / width,
+                                it
+                            )
+                        )
+                    }
+                }
 
-            for (j in rockCount - 1 downTo 0) {
-                if (rocks[j].cellTypes.size <= i + 1) {
-                    rocks[j] = rocks[rockCount - 1]
+                if (rocks[ir].cellTypes.size <= i + 1) {
+                    rocks[ir] = rocks[rockCount - 1]
                     rockCount--
                 }
             }
-
         }
         return actions
     }
-
-    fun extendPath(
-        path: Path,
-        endPath: Int = path.directions.size,
-        isFixed: (x: Int, y: Int, i: Int) -> Boolean = { _, _, _ -> false }
-    ): List<ExtendedPath> {
-        val paths = mutableListOf<List<Int>>()
-
-        val end = endPath.coerceAtMost(path.directions.size) - 1
-        for (i in 0 until end) {
-            val (x, y) = path.path[i]
-            val type = get(x, y)
-
-            val isFixed = (fixed.getOrNull(y)?.getOrNull(x) ?: true) || isFixed(x, y, i)
-
-            if (isFixed) {
-                paths.add(listOf(type))
-                continue
-            }
-            val inputDir = path.directions[i]
-            val outputDir = path.directions[i + 1]
-            paths.add(getPossibleRotations(type, inputDir, outputDir).toList())
-        }
-        return paths.getCombinations().map { ExtendedPath(path.path, it) }
-    }
-
-    fun getPossibleRotations(type: Int, inputDir: Direction, outputDir: Direction): Set<Int> {
-        var currentType = type
-
-        val possibleRotations = mutableSetOf<Int>()
-        repeat(4) {
-            if (CellType.outputDirection(currentType, inputDir) == outputDir) {
-                possibleRotations.add(currentType)
-            }
-            currentType = CellType.rotate(currentType, Rotation.RIGHT)
-        }
-        return possibleRotations
-    }
 }
 
-class Path(
-    val entity: Position,
-    val path: List<Pair<Int, Int>> = emptyList(),
-    val directions: List<Direction> = emptyList()
-) {
-
-    override fun equals(other: Any?): Boolean {
-        return if (other is Path) other.entity == entity
-        else false
-    }
-
-    override fun hashCode() = entity.hashCode()
-}
-
-class ExtendedPath(
-    val path: List<Pair<Int, Int>> = emptyList(),
-    val cellTypes: List<Int> = emptyList()
-) {
-    fun drop(i: Int): ExtendedPath {
-        return ExtendedPath(
-            path.drop(i),
-            cellTypes.drop(i)
-        )
-    }
-}
-
-fun <T : Any> List<List<T>>.getCombination(i: Long): List<T> {
-    val result = mutableListOf<T>()
-    var index = i
-    this.filter { it.isNotEmpty() }.forEach {
-        val current = index % it.size
-        index /= it.size
-        result.add(it[current.toInt()])
-    }
-    return result
-}
-
-fun <T : Any> List<List<T>>.getCombinationCount(): Long {
-    return this.filter { it.isNotEmpty() }.fold(1L) { acc, a -> a.size * acc }
-}
-
-fun <T : Any> List<List<T>>.getCombinations(): List<List<T>> {
-    return List(getCombinationCount().toInt()) { getCombination(it.toLong()) }
-}
-
-class Game {
-    lateinit var indy: Position
-    var indyPaths: List<ExtendedPath> = emptyList()
-
-    fun update(indy: Position) {
-        this.indy = indy
-        if (indyPaths.isEmpty()) {
-            this.indyPaths = Board.findIndyPaths(indy).flatMap(Board::extendPath)
-        } else {
-            this.indyPaths = this.indyPaths.mapNotNull { path ->
-                path.path.firstOrNull()?.let { (x, y) ->
-                    if (x == indy.x && y == indy.y) path.drop(1)
-                    else null
-                }
-            }
-        }
-    }
-}
 
 fun main() {
-    val input = Scanner(System.`in`)
-    Board.init(input)
-    val game = Game()
     var maxTime = 0L
-    // game loop
+    val board = GameReader.readBoard()
+//    board.entrances.forEach(System.err::println)
     while (true) {
-        val indy = Position(input)
-        game.update(indy)
-        val r = input.nextInt() // the number of rocks currently in the grid.
-        val rocks = List(r) { Position(input) }
-
+        val indy = GameReader.readIndy()
         measureTimeMillis {
-            val validIndyPaths = game.indyPaths
-            var actions: List<Action>? = null
-            for (indyPath in validIndyPaths) {
+            val rocks = GameReader.readRocks()
+                .map { pos -> Rock(pos, board.findRockPaths(pos)) }
 
-                val completePath = listOf(game.indy.x to game.indy.y) + indyPath.path
-                val completeIndyCells = listOf(Board.get(game.indy.x, game.indy.y)) + indyPath.cellTypes
+            val indyPaths = board.findIndyPaths(indy)
+            val indyRealPaths =
+                indyPaths.flatMap { it.toRealPath(board.cellTypes) { cellIndex, _ -> board.fixedMap[cellIndex] } }
 
-                val rockPaths = rocks.map { Board.findRockPaths(it, completePath, completeIndyCells) }
-                val extendedRockPaths = rockPaths.map { path ->
-                    path.flatMap {
-                        Board.extendPath(it, completePath.size) { x, y, i ->
-                            val (xi, yi) = completePath[i]
-                            xi == x && yi == y
+            var actions: List<Action> = emptyList()
+
+            for (indyRealPath in indyRealPaths) {
+                System.err.println("Indy Path : ${indyRealPath.path}")
+                System.err.println("Indy Cell Type : ${indyRealPath.cellTypes}")
+                val realRocksPaths = rocks
+//                    .filter { it.isDangerous(indyRealPath) }
+//                   .onEach{ rock -> System.err.println(rock.paths.joinToString("\n"){"${it.path}"}) }
+                    .map { rock ->
+                        rock.paths.flatMap {
+                            it.toRealPath(board.cellTypes) { cellIndex, pathIndex ->
+                                board.fixedMap[cellIndex]
+                            }
                         }
                     }
-                }
-                val totalRockCombination = extendedRockPaths.getCombinationCount()
+                System.err.println("Dangerous Rocks :: ")
+//                rocks.forEach { System.err.println("${it.start} -> ${it.isDangerous(indyRealPath)}") }
+//                realRocksPaths.forEach{
+//                    System.err.println(it.joinToString("\n"){"${it.path}"})
+//                    System.err.println(it.joinToString("\n"){"${it.cellTypes}"})
+//                    System.err.println()
+//                }
+                val totalRockCombination = realRocksPaths.getCombinationCount()
                 var i = 0L
-                while (!Board.isValidCombination(indyPath, extendedRockPaths.getCombination(i))
+                while (!board.isValidRealPathCombination(indyRealPath, realRocksPaths.getCombination(i))
                     && i < totalRockCombination
                 ) {
                     i++
                 }
-
                 if (i < totalRockCombination) {
-                    actions = Board.getActions(indyPath, extendedRockPaths.getCombination(i))
+
+                    System.err.println("find a valid combination :")
+
+                    realRocksPaths.getCombination(i).forEach {
+                        System.err.println(it.path.joinToString())
+                    }
+                    actions = board.getActions(indyRealPath, realRocksPaths.getCombination(i))
                     break
                 }
             }
-            System.err.println(actions)
-            val action = actions?.firstOrNull() ?: Action.Wait
+
+            val action = actions.firstOrNull() ?: Action.Wait
             println(action)
-            Board.update(action)
+            board.update(action)
+
         }.let {
             if (it > maxTime) maxTime = it
             System.err.println("Solution found in ${it}ms")
