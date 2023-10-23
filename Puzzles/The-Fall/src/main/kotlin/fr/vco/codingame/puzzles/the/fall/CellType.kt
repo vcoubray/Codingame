@@ -1,9 +1,8 @@
 package fr.vco.codingame.puzzles.the.fall
 
-
 class CellType(
     val id: Int,
-    private val orientations: List<Int> = listOf(),
+    orientations: List<Int> = listOf(),
     val exitDirection: (Direction) -> Direction,
 ) {
     val rotate = mapOf(
@@ -40,15 +39,15 @@ val CELL_TYPES = listOf(
     CellType(
         4,
         listOf(5)
-    ) { inputDir -> if (inputDir == Direction.RIGHT) Direction.TOP else if (inputDir == Direction.TOP) Direction.RIGHT else Direction.NONE },
+    ) { inputDir -> if (inputDir == Direction.RIGHT) Direction.TOP else if (inputDir == Direction.TOP) Direction.RIGHT else Direction.CRASH },
     CellType(
         5,
         listOf(4)
-    ) { inputDir -> if (inputDir == Direction.LEFT) Direction.TOP else if (inputDir == Direction.TOP) Direction.LEFT else Direction.NONE },
+    ) { inputDir -> if (inputDir == Direction.LEFT) Direction.TOP else if (inputDir == Direction.TOP) Direction.LEFT else Direction.CRASH },
     CellType(
         6,
         listOf(7, 8, 9)
-    ) { inputDir -> if (inputDir == Direction.LEFT || inputDir == Direction.RIGHT) inputDir else Direction.NONE },
+    ) { inputDir -> if (inputDir == Direction.LEFT || inputDir == Direction.RIGHT) inputDir else Direction.CRASH },
     CellType(
         7,
         listOf(8, 9, 6)
@@ -61,8 +60,8 @@ val CELL_TYPES = listOf(
         9,
         listOf(6, 7, 8)
     ) { inputDir -> if (inputDir == Direction.LEFT || inputDir == Direction.TOP) Direction.TOP else Direction.NONE },
-    CellType(10, listOf(11, 12, 13)) { inputDir -> if (inputDir == Direction.TOP) Direction.RIGHT else Direction.NONE },
-    CellType(11, listOf(12, 13, 10)) { inputDir -> if (inputDir == Direction.TOP) Direction.LEFT else Direction.NONE },
+    CellType(10, listOf(11, 12, 13)) { inputDir -> if (inputDir == Direction.TOP) Direction.RIGHT else if (inputDir == Direction.LEFT) Direction.CRASH else Direction.NONE },
+    CellType(11, listOf(12, 13, 10)) { inputDir -> if (inputDir == Direction.TOP) Direction.LEFT else if (inputDir == Direction.RIGHT) Direction.CRASH else Direction.NONE },
     CellType(12, listOf(13, 10, 11)) { inputDir -> if (inputDir == Direction.RIGHT) Direction.TOP else Direction.NONE },
     CellType(13, listOf(10, 11, 12)) { inputDir -> if (inputDir == Direction.LEFT) Direction.TOP else Direction.NONE }
 )

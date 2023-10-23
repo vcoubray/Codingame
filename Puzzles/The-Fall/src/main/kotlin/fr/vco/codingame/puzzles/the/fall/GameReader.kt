@@ -3,7 +3,6 @@ package fr.vco.codingame.puzzles.the.fall
 import java.util.*
 import kotlin.math.absoluteValue
 
-
 object GameReader {
     data class Position2D(val x: Int, val y: Int, val dir: Direction)
 
@@ -35,14 +34,11 @@ object GameReader {
                 }
             }
 
-        return Board(width, height, exit, cellTypes, fixedMap, neighbors)
+        return Board(width, exit, cellTypes, fixedMap, neighbors)
     }
 
-    fun readIndy() = readPosition()
-    fun readRocks(): List<Position> {
-        val r = input.nextInt()
-        return List(r) { readPosition() }
-    }
+    fun readIndyPosition() = readPosition()
+    fun readRocksPositions() = List(input.nextInt()) { readPosition() }
 
     private fun readPosition() = toPosition(input.nextInt(), input.nextInt(), Direction.valueOf(input.next()))
     private fun toPosition(x: Int, y: Int, dir: Direction) = Position(y * width + x, dir)

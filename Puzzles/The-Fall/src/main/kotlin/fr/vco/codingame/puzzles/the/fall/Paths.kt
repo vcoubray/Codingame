@@ -1,12 +1,10 @@
 package fr.vco.codingame.puzzles.the.fall
 
-
-
 class Path(
     val currentCell: Int,
     val currentDirection: Direction,
-    val path: List<Int> = emptyList(),
-    val directions: List<Direction> = emptyList()
+    val cellPath: List<Int> = emptyList(),
+    val directions: List<Direction> = emptyList(),
 ) {
 
     override fun equals(other: Any?): Boolean {
@@ -16,69 +14,26 @@ class Path(
 
     override fun hashCode() = currentCell * 37000 + directions.hashCode()
 
-    fun toRealPath(
-        cellTypesMap: List<Int>,
-        isFixed: (cellIndex: Int, pathIndex:Int) -> Boolean = { _, _ -> false },
-    ): List<RealPath> {
-        val realPaths = mutableListOf<List<Int>>()
+    fun isCrossing(path: Path): Boolean {
+        for (i in this.cellPath.indices) {
+            if (i >= path.cellPath.size) return false
 
-        for (i in 0 until this.directions.size - 1) {
-            val cellIndex = this.path[i]
-            val type = CELL_TYPES[cellTypesMap[cellIndex]]
+            if(this.cellPath[i] == path.cellPath[i]) return true
 
-            if (isFixed(cellIndex, i)) {
-                realPaths.add(listOf(type.id))
-                continue
-            }
-            val inputDir = this.directions[i]
-            val outputDir = this.directions[i + 1]
-            realPaths.add(getPossibleOrientations(type.id, inputDir, outputDir))
-        }
-
-        return realPaths.getCombinations().map { RealPath(this.path, it) }
-    }
-
-    fun getCrossingOffset(path: Path) : Int {
-        for (i in this.path.indices) {
-            if (i >= path.path.size) return -1
-            for (j in i until path.path.size) {
-                if (this.path[i] == path.path[j]) return j - i
+            if (i > 0) {
+                val pathCellPrev = path.cellPath[i - 1]
+                val cellPrev = this.cellPath[i - 1]
+                if (path.cellPath[i] == cellPrev && pathCellPrev == this.cellPath[i]) return true
             }
         }
-        return -1
-    }
-
-}
-
-class RealPath(
-    val path: List<Int> = emptyList(),
-    val cellTypes: List<Int> = emptyList()
-){
-
-    fun drop(i: Int): RealPath {
-        return RealPath(
-            path.drop(i),
-            cellTypes.drop(i)
-        )
+        return false
     }
 }
 
-fun <T : Any> List<List<T>>.getCombination(i: Long): List<T> {
-
-    return buildList {
-        var index = i
-        this@getCombination.filter { it.isNotEmpty() }.forEach {
-            val current = index % it.size
-            index /= it.size
-            this.add(it[current.toInt()])
-        }
-    }
-}
-
-fun <T : Any> List<List<T>>.getCombinationCount(): Long {
-    return this.filter { it.isNotEmpty() }.fold(1L) { acc, a -> a.size * acc }
-}
-
-fun <T : Any> List<List<T>>.getCombinations(): List<List<T>> {
-    return List(getCombinationCount().toInt()) { getCombination(it.toLong()) }
+class DetailedPath(
+    val path: List<Int>,
+    val cellTypes: List<Int>,
+    val directions: List<Direction> = emptyList(),
+) {
+    val size = cellTypes.size
 }
