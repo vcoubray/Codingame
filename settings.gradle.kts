@@ -7,6 +7,7 @@ include(
     "Puzzles:DontPanic-episode2",
     "Puzzles:Genome-Sequencing",
     "Puzzles:Mars-Lander",
+    "Puzzles:Music-scores",
     "Puzzles:Roller-Coaster",
     "Puzzles:Shadow-Of-The-Knight",
     "Puzzles:Super-Calculateur",
