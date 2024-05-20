@@ -18,6 +18,7 @@ include(
     "Puzzles:The-Resistance",
     "Puzzles:There-is-no-spoon-episode-2",
     "Puzzles:VoxCodei-Episode1",
+    "Puzzles:VoxCodei-Episode2",
     "Puzzles:Winamax",
     "Golf:Thor",
     "Contests:Code4Life",
