@@ -28,6 +28,6 @@ include(
     "Contests:Summer-Challenge-2024",
     "Contests:Fall-Challenge-2022",
     "Contests:Fall-Challenge-2023",
+    "Contests:Fall-Challenge-2024",
     "Contests:Tic-Tac-Toe"
 )
-
