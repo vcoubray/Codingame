@@ -18,13 +18,14 @@ data class Point(val x: Int, val y: Int) {
 const val MAX_BUILDINGS = 150
 const val MAX_TUNNELS = 4
 
-const val POD_COST = 1000
 const val SPACEPORT_TYPE = 0
+const val POD_COST = 1000
+const val TELEPORT_COST = 5000
 
 
-open class Building(val type: Int, val id: Int, val pos: Point)
+open class Building(val type: Int, val id: Int, val pos: Point, var hasTeleport: Boolean = false)
 class Spaceport(type: Int, id: Int, pos: Point, val astronauts: Map<Int, Int>) : Building(type, id, pos)
-data class Route(val startId: Int, val endId: Int, val capacity: Int)
+data class Route(val startId: Int, val endId: Int, var capacity: Int)
 class Pod(val id: Int, val path: List<Int>)
 
 
@@ -122,6 +123,24 @@ object Game {
         }
         return true
     }
+
+    fun hasPathForType(start: Int, type: Int): Boolean {
+        val toVisit = ArrayDeque<Int>().apply { add(start) }
+        val visited = BooleanArray(network.size) { false }
+        visited[start] = true
+
+        while (toVisit.isNotEmpty()) {
+            val current = toVisit.removeFirst()
+
+            for (n in network[current].filterNot { visited[it] }) {
+                if (buildings[n].type == type) return true
+                visited[n] = true
+                toVisit.add(n)
+            }
+        }
+        return false
+    }
+
 }
 
 fun List<List<Int>>.hasPath(start: Int, destination: Int): Boolean {
@@ -141,7 +160,8 @@ fun List<List<Int>>.hasPath(start: Int, destination: Int): Boolean {
     return false
 }
 
-data class PotentialTube(val startId: Int, val endId: Int, val cost: Int)
+
+data class PotentialTube(val startId: Int, val endId: Int, val cost: Int, val isTeleport: Boolean = false)
 
 fun main() {
 
@@ -163,35 +183,65 @@ fun main() {
 
         val possibleTubes = Game.spaceports.flatMap { spaceport ->
             val targets =
-                spaceport.astronauts.flatMap { (type, _) -> Game.buildings.filter { b -> b.type == type && Game.network[b.id].size < MAX_TUNNELS } }
-            targets.map { PotentialTube(spaceport.id, it.id, Game.distances[spaceport.id][it.id].toInt() * 10) }
-        }
-
-        possibleTubes.sortedBy { it.cost }.forEach { (spaceportId, targetId, cost) ->
-            if (Game.network[spaceportId].size < MAX_TUNNELS && Game.network[targetId].size < MAX_TUNNELS) {
-                if (!Game.network.hasPath(spaceportId, targetId)) {
-
-                    val route = Route(spaceportId, targetId, 1)
-                    if (cost <= resources && Game.canBuild(route)) {
-                        actions.add(Tube(Game.buildings[spaceportId], Game.buildings[targetId]))
-                        Game.network[spaceportId].add(targetId)
-                        Game.network[targetId].add(spaceportId)
-                        Game.routes.add(route)
-                        resources -= cost
-
-                        if (POD_COST <= resources) {
-                            val pod = Pod(Game.pods.size, listOf(spaceportId, targetId, spaceportId))
-                            actions.add(AddPod(pod))
-                            Game.pods.add(pod)
-                            resources -= POD_COST
-                        } else {
-                            podlessRoutes.addLast(route)
-                        }
-                    }                   
-                }
+                spaceport.astronauts.flatMap { (type, _) -> Game.buildings.filter { b -> b.type == type } }
+            targets.flatMap {
+                listOf(
+                    PotentialTube(spaceport.id, it.id, Game.distances[spaceport.id][it.id].toInt() * 10),
+                    PotentialTube(spaceport.id, it.id, TELEPORT_COST, true)
+                )
             }
         }
-        
+
+        possibleTubes.sortedBy { if (it.isTeleport) it.cost else it.cost + POD_COST }
+            .forEach { (spaceportId, targetId, cost, isTeleport) ->
+                val spaceport = Game.buildings[spaceportId]
+                val target = Game.buildings[targetId]
+
+                if (!Game.network.hasPath(spaceportId, targetId) &&
+                    !Game.hasPathForType(spaceportId, Game.buildings[targetId].type)
+                ) {
+
+                    val route = Route(spaceportId, targetId, 1)
+                    if (isTeleport) {
+                        val canBuildTeleport = !spaceport.hasTeleport && !target.hasTeleport && cost <= resources
+                        if (canBuildTeleport) {
+                            actions.add(Teleport(spaceport, target))
+                            Game.network[spaceportId].add(targetId)
+                            Game.network[targetId].add(spaceportId)
+                            spaceport.hasTeleport = true
+                            target.hasTeleport = true
+                            route.capacity = 0
+                            Game.routes.add(route)
+                            resources -= cost
+                        }
+                    } else {
+                        val spacePortTunnels = Game.network[spaceportId].size - if (spaceport.hasTeleport) 1 else 0
+                        val targetTunnels = Game.network[targetId].size - if (target.hasTeleport) 1 else 0
+
+                        val canBuildTunnel =
+                            Game.canBuild(route) && spacePortTunnels < MAX_TUNNELS && targetTunnels < MAX_TUNNELS
+
+                        if (cost <= resources && canBuildTunnel) {
+                            actions.add(Tube(spaceport, Game.buildings[targetId]))
+                            Game.network[spaceportId].add(targetId)
+                            Game.network[targetId].add(spaceportId)
+                            Game.routes.add(route)
+                            resources -= cost
+
+                            if (POD_COST <= resources) {
+                                val pod = Pod(Game.pods.size, listOf(spaceportId, targetId, spaceportId))
+                                actions.add(AddPod(pod))
+                                Game.pods.add(pod)
+                                resources -= POD_COST
+                            } else {
+                                podlessRoutes.addLast(route)
+                            }
+                        }
+                    }
+
+                }
+            }
+
         System.err.println("resources = $resources")
         println(actions.takeIf { it.isNotEmpty() }?.joinToString(";") { it.play() } ?: Wait.play())
     }
