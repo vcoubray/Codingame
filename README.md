@@ -11,3 +11,13 @@ This project use the gradle module from [CedrickFlocon](https://github.com/Cedri
 ```
 
 The generated file is `module/build/codingame/condigame.kt`
+
+
+# Coding with external IDE:
+
+Using the sync app [CG Local](https://www.codingame.com/forum/t/cg-local/10359)
+
+- Start the local app :
+```shell
+java -jar ./cg-local-app-1.3.1.jar
+```
