@@ -25,6 +25,7 @@ include(
     "Contests:Spring-Challenge-2021",
     "Contests:Spring-Challenge-2022",
     "Contests:Spring-Challenge-2023",
+    "Contests:Spring-Challenge-2025",
     "Contests:Summer-Challenge-2024",
     "Contests:Fall-Challenge-2022",
     "Contests:Fall-Challenge-2023",
