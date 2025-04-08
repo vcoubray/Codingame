@@ -45,8 +45,16 @@ class MainTests {
                 assertEquals(expected, resolve(initialDie, depth))
             }
         }
-
         println("Resolved test \t$testCase in \t${times.mean()}ms. \tMax: ${times.max()}ms, \tMin: ${times.min()}ms")
+
+//        val times2 = List(10) {
+//            NEXT_BOARDS.clear()
+//            measureTimeMillis {
+//                assertEquals(expected, resolve2(initialDie, depth))
+//            }
+//        }
+//
+//        println("Resolved test \t$testCase in \t${times2.mean()}ms. \tMax: ${times2.max()}ms, \tMin: ${times2.min()}ms")
 
     }
 
