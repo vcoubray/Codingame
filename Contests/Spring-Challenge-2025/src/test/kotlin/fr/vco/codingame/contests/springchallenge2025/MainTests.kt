@@ -40,7 +40,7 @@ class MainTests {
         val initialDie = die.map { it.digitToInt() }
 
         val times = List(10) {
-            NEXT_BOARDS.clear()
+//            NEXT_BOARDS.clear()
             measureTimeMillis {
                 assertEquals(expected, resolve(initialDie, depth))
             }
@@ -61,10 +61,17 @@ class MainTests {
 
     @Test
     fun stuff() {
-        println(666666667.toString(2).padStart(32, '0'))
-        println(MODULO_30)
-        println(MODULO_30.toString(2).padStart(32, '0'))
-        println((MODULO_30 - 1).toString(2).padStart(32, '0'))
+
+
+        BOARD_MASKS.forEach{
+            println(it.toString(2))
+        }
+
+//
+//        println(666666667.toString(2).padStart(32, '0'))
+//        println(MODULO_30)
+//        println(MODULO_30.toString(2).padStart(32, '0'))
+//        println((MODULO_30 - 1).toString(2).padStart(32, '0'))
     }
 
 
