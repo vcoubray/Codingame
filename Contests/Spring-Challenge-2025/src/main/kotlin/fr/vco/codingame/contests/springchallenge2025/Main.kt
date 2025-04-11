@@ -30,73 +30,102 @@ val NEIGHBOURS_COMBINATIONS = arrayOf(
 
 fun main() {
     val depth = readln().toInt()
-    val die = List(3){readln().split(" ")}.flatten()
+    val die = List(3) { readln().split(" ") }.flatten()
     var board = 0
     repeat(BOARD_SIZE) {
         board = board.add(it, die[it].toInt())
     }
 
-    println(resolve(board, depth))
+//    println(resolve(board, depth))
+    println(resolveNonRecursive(board, depth))
 }
 
-//var FINAL_HASH: List<HashMap<Int, Int>> = emptyList()
-lateinit var FINAL_HASH2: HashMap<Long, Int> //= HashMap(4_000_000, 0.95f)
+lateinit var FINAL_HASH: HashMap<Long, Int> //= HashMap(4_000_000, 0.95f)
 fun resolve(initialBoard: Int, depth: Int): Int {
-    FINAL_HASH2 = HashMap(4_000_000, 0.95f)
-//    FINAL_HASH = List(depth + 1) { HashMap(100_000, 0.95f) }
+    FINAL_HASH = HashMap(4_000_000, 0.95f)
     return getFinalHash(initialBoard, depth)
 }
 
 
-data class State(var hash: Int = 0, var childId: Int = 0)
+class StakState(
+    var board: Int = 0,
+    var hash: Int = 0,
+    var childId: Int = 0,
+    val next: IntArray = IntArray(21) { 0 },
+    var childCount: Int = 0
+)
 
 
-//fun resolve2(initialBoard: List<Int>, depth: Int): Int {
-//    FINAL_HASH = List(depth + 1) { HashMap() }
-//    val stack = MutableList(depth + 1) { State() }
-//
-//    var turn = 0
-//    stack[0] = State(initialBoard.hash(), 0)
-//
-//    while (turn >= 0) {
-//        val curr = stack[turn]
-//        computeNextBoards(curr.hash)
-//        if (turn == depth || NEXT_BOARDS[curr.hash]!!.isEmpty()) {
-//            FINAL_HASH[turn][curr.hash] = curr.hash
-//        }
-//
-//
-//        if ((curr.childId == 0 && FINAL_HASH[turn][curr.hash] != null) ||
-//            curr.childId >= NEXT_BOARDS[curr.hash]!!.size
-//        ) {
-//            // This state is already computed
-//            turn--
-//            if (turn >= 0) {
-//                FINAL_HASH[turn][stack[turn].hash] =
-//                    (FINAL_HASH[turn][stack[turn].hash]!! + FINAL_HASH[turn + 1][curr.hash]!!) and MODULO_30_MASK
-//            }
-//        } else {
-//            if (curr.childId == 0) {
-//                FINAL_HASH[turn][curr.hash] = 0
-//            }
-//            turn++
-//            stack[turn].hash = NEXT_BOARDS[curr.hash]!![curr.childId]
-//            stack[turn].childId = 0
-//
-//            curr.childId++
-//        }
-//    }
-//    return FINAL_HASH[0][stack[0].hash]!!
-//}
+fun resolveNonRecursive(initialBoard: Int, depth: Int): Int {
+    FINAL_HASH = HashMap(4_000_000, 0.95f)
+    val stack = List(depth + 1) { StakState() }
+    var turn = 0
+    stack[0].board = initialBoard
+
+    while (turn >= 0) {
+        val curr = stack[turn]
+
+        // Etat final || turn > depth
+        // - Ajouter le hash a l'état précédent
+        // - turn --
+        if (curr.board.isFinal() || turn >= depth) {
+            if(turn > 0) stack[turn - 1].hash = (stack[turn - 1].hash + curr.board.toHash()) and MODULO_30_MASK
+            turn--
+            continue
+        }
+
+        // Board déjà calculé
+        // - Ajouter le hash à l'état précédent
+        // - turn --
+        val key = curr.board * 41L + turn
+        val hash = FINAL_HASH[key]
+        if (hash != null) {
+            if(turn > 0) stack[turn - 1].hash = (stack[turn - 1].hash + hash) and MODULO_30_MASK
+            turn--
+            continue
+        }
+
+        // Premier passage -> ChildId == 0
+        // - Initialiser le hash a 0
+        // - Initialiser l'état courant avec les bons childs
+        // - initiliser le childCount
+        if (curr.childId == 0) {
+            curr.hash = 0
+            computeNextBoards(curr)
+        }
+
+        // Il n'y a plus de child a vérifier : childId >= childCount
+        // - Stocker le hash dans le cache
+        // - turn --
+        if (curr.childId >= curr.childCount) {
+            FINAL_HASH[key] = curr.hash
+            if(turn > 0) stack[turn - 1].hash = (stack[turn - 1].hash + curr.hash) and MODULO_30_MASK
+            turn--
+            continue
+        }
+
+        // Encore des enfant a vérifier
+        //  - Initialiser l'état suivant avec le child courant
+        //  - Initialiser le childId de l'état suivant a 0
+        //  - childId ++
+        //  - turn++
+        stack[turn + 1].board = curr.next[curr.childId]
+        stack[turn + 1].childId = 0
+        curr.childId++
+        turn ++
+
+    }
+    return stack[0].hash
+}
 
 fun getFinalHash(board: Int, turn: Int): Int {
 
     if (turn == 0 || board.isFinal()) {
         return board.toHash()
     }
-    val key = board*41L+turn
+    val key = board * 41L + turn
 //    var hash = FINAL_HASH[turn][board]
-    var hash = FINAL_HASH2[key]
+    var hash = FINAL_HASH[key]
     if (hash != null) {
         return hash
     }
@@ -108,13 +137,13 @@ fun getFinalHash(board: Int, turn: Int): Int {
     }
 
 //    FINAL_HASH[turn][board] = hash!!
-    FINAL_HASH2[key] = hash!!
+    FINAL_HASH[key] = hash!!
     return hash!!
 }
 
 fun getNextBoards(board: Board): List<Int> {
 
-    val next =  mutableListOf<Int>()
+    val next = mutableListOf<Int>()
     for (i in 0 until BOARD_SIZE) {
         if (board and BOARD_MASKS[i] == 0) {
             var capture = false
@@ -131,12 +160,12 @@ fun getNextBoards(board: Board): List<Int> {
                     nextBoard -= remove
                 }
 
-                if(sum <= 6) {
+                if (sum <= 6) {
                     capture = true
-                    next.add(nextBoard.add(i,sum))
+                    next.add(nextBoard.add(i, sum))
                 }
             }
-            if(!capture) {
+            if (!capture) {
                 next.add(board.add(i, 1))
             }
         }
@@ -144,65 +173,63 @@ fun getNextBoards(board: Board): List<Int> {
 
     return next.toList()
 }
-//
-//fun computeNextBoards(hash: Int) {
-//    if (NEXT_BOARDS[hash] != null) return
-//    val board = hash.getBoard()
-//    NEXT_BOARDS[hash] = mutableListOf()
-//    for (i in 0 until BOARD_SIZE) {
-//        if (board[i] == 0) {
-//            var capture = false
-//            for (combination in NEIGHBOURS_COMBINATIONS[i]) {
-//                var sum = 0
-//
-//                for (n in combination) {
-//                    if ( board[n] == 0) {
-//                        sum = 7
-//                        break
-//                    }
-//                    sum +=  board[n]
-//                }
-//
-//                if(sum <= 6) {
-//                    capture = true
-//                    NEXT_BOARDS[hash]!!.add(
-//                        board.toMutableList().apply {
-//                            this[i] = sum
-//                            combination.forEach { n -> this[n] = 0 }
-//                        }.hash()
-//                    )
-//                }
-//            }
-//            if(!capture) {
-//                NEXT_BOARDS[hash]!!.add(board.toMutableList().apply { this[i] = 1 }.hash())
-//            }
-//        }
-//    }
-//}
+
+fun computeNextBoards(state: StakState) {
+    var nextId = 0
+    for (i in 0 until BOARD_SIZE) {
+        if (state.board and BOARD_MASKS[i] == 0) {
+            var capture = false
+            for (combination in NEIGHBOURS_COMBINATIONS[i]) {
+                var sum = 0
+                var nextBoard = state.board
+                for (n in combination) {
+                    val remove = state.board and BOARD_MASKS[n]
+                    if (remove == 0) {
+                        sum = 7
+                        break
+                    }
+                    sum += state.board.get(n)
+                    nextBoard -= remove
+                }
+
+                if (sum <= 6) {
+                    capture = true
+                    state.next[nextId] = (nextBoard.add(i, sum))
+                    nextId++
+                }
+            }
+            if (!capture) {
+                state.next[nextId] =(state.board.add(i, 1))
+                nextId++
+            }
+        }
+    }
+    state.childCount = nextId
+}
 
 
 typealias Board = Int
 
-fun Board.add(i : Int, value: Int): Board{
-    return this + (value shl i*3)
+fun Board.add(i: Int, value: Int): Board {
+    return this + (value shl i * 3)
 }
 
-fun Board.get (i:Int): Board {
-    return (this shr i*3) and 7
+fun Board.get(i: Int): Board {
+    return (this shr i * 3) and 7
 }
 
 fun Board.isFinal(): Boolean {
-    repeat(BOARD_SIZE){
-        if( this.get(it) == 0 ) return false
+    repeat(BOARD_SIZE) {
+        if (this.get(it) == 0) return false
     }
     return true
 }
 
-fun Board.toHash() : Int {
+fun Board.toHash(): Int {
     var hash = 0
-    repeat(BOARD_SIZE){ hash = 10 * hash + this.get(it) }
+    repeat(BOARD_SIZE) { hash = 10 * hash + this.get(it) }
     return hash
 }
 
 
-val BOARD_MASKS = List(9){ 7 shl it*3}
+val BOARD_MASKS = List(9) { 7 shl it * 3 }
