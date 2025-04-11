@@ -1,6 +1,5 @@
 package fr.vco.codingame.contests.springchallenge2025
 
-
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.Arguments
 import org.junit.jupiter.params.provider.MethodSource
@@ -10,7 +9,6 @@ import kotlin.system.measureTimeMillis
 import kotlin.test.Test
 
 import kotlin.test.assertEquals
-
 
 class MainTests {
 
@@ -35,14 +33,17 @@ class MainTests {
 
     @ParameterizedTest
     @MethodSource("tests")
-    fun allTests(testCase: Int, depth: Int, die: String, expected: Int) {
+    fun allTests(testCase: Int, depth: Int, board: String, expected: Int) {
 
-        val initialDie = die.map { it.digitToInt() }
+        var initialBoard = 0
+        repeat(BOARD_SIZE) {
+            initialBoard = initialBoard.add(it, board[it].digitToInt())
+        }
 
         val times = List(10) {
 //            NEXT_BOARDS.clear()
             measureTimeMillis {
-                assertEquals(expected, resolve(initialDie, depth))
+                assertEquals(expected, resolve(initialBoard, depth))
             }
         }
         println("Resolved test \t$testCase in \t${times.mean()}ms. \tMax: ${times.max()}ms, \tMin: ${times.min()}ms")

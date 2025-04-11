@@ -1,6 +1,5 @@
 package fr.vco.codingame.contests.springchallenge2025
 
-
 const val MODULO_30_MASK = 1073741823 // (2^31)-1
 const val BOARD_SIZE = 9
 
@@ -31,19 +30,21 @@ val NEIGHBOURS_COMBINATIONS = arrayOf(
 
 fun main() {
     val depth = readln().toInt()
-    val dies = List(3) { readln().split(" ").map { it.toInt() } }.flatten()
+    val die = List(3){readln().split(" ")}.flatten()
+    var board = 0
+    repeat(BOARD_SIZE) {
+        board = board.add(it, die[it].toInt())
+    }
 
-    println(resolve(dies, depth))
+    println(resolve(board, depth))
 }
 
-var FINAL_HASH: List<HashMap<Int, Int>> = emptyList()
-
-fun resolve(initialBoard: List<Int>, depth: Int): Int {
-    FINAL_HASH = List(depth + 1) { HashMap(100_000, 0.95f) }
-
-    val board = initialBoard.foldIndexed(0){i, acc, a -> acc.add(i, a)}
-
-    return getFinalHash(board, depth)
+//var FINAL_HASH: List<HashMap<Int, Int>> = emptyList()
+lateinit var FINAL_HASH2: HashMap<Long, Int> //= HashMap(4_000_000, 0.95f)
+fun resolve(initialBoard: Int, depth: Int): Int {
+    FINAL_HASH2 = HashMap(4_000_000, 0.95f)
+//    FINAL_HASH = List(depth + 1) { HashMap(100_000, 0.95f) }
+    return getFinalHash(initialBoard, depth)
 }
 
 
@@ -90,62 +91,58 @@ data class State(var hash: Int = 0, var childId: Int = 0)
 
 fun getFinalHash(board: Int, turn: Int): Int {
 
-    if (FINAL_HASH[turn][board] != null) {
-        return FINAL_HASH[turn][board]!!
+    if (turn == 0 || board.isFinal()) {
+        return board.toHash()
+    }
+    val key = board*41L+turn
+//    var hash = FINAL_HASH[turn][board]
+    var hash = FINAL_HASH2[key]
+    if (hash != null) {
+        return hash
     }
 
-    if (turn == 0 || getNextBoards(board).isEmpty()) {
-        FINAL_HASH[turn][board] = board.toHash()
-        return FINAL_HASH[turn][board]!!
-    }
-
-    FINAL_HASH[turn][board] = 0
+    hash = 0
     getNextBoards(board).forEach { nextBoard ->
         val finalHash = getFinalHash(nextBoard, turn - 1)
-        FINAL_HASH[turn][board] = (FINAL_HASH[turn][board]!! + finalHash) and MODULO_30_MASK
+        hash = (hash!! + finalHash) and MODULO_30_MASK
     }
 
-    return FINAL_HASH[turn][board]!!
+//    FINAL_HASH[turn][board] = hash!!
+    FINAL_HASH2[key] = hash!!
+    return hash!!
 }
 
-//val NEXT_BOARDS = HashMap<Board, MutableList<Board>>( 300_000, 0.95f)
 fun getNextBoards(board: Board): List<Int> {
-//    if (NEXT_BOARDS[board] != null) {
-//        return NEXT_BOARDS[board]!!
-//    }
 
-//    NEXT_BOARDS[board] = mutableListOf()
-    val next = mutableListOf<Int>()
+    val next =  mutableListOf<Int>()
     for (i in 0 until BOARD_SIZE) {
         if (board and BOARD_MASKS[i] == 0) {
             var capture = false
             for (combination in NEIGHBOURS_COMBINATIONS[i]) {
                 var sum = 0
-                var remove = 0
+                var nextBoard = board
                 for (n in combination) {
-                    if (board and BOARD_MASKS[n] == 0) {
+                    val remove = board and BOARD_MASKS[n]
+                    if (remove == 0) {
                         sum = 7
                         break
                     }
                     sum += board.get(n)
-                    remove += board and BOARD_MASKS[n]
+                    nextBoard -= remove
                 }
 
                 if(sum <= 6) {
                     capture = true
-//                    NEXT_BOARDS[board]!!.add(board.add(i,sum) - remove)
-                    next.add(board.add(i,sum) - remove)
+                    next.add(nextBoard.add(i,sum))
                 }
             }
             if(!capture) {
-//                NEXT_BOARDS[board]!!.add(board.add(i, 1))
                 next.add(board.add(i, 1))
-
             }
         }
     }
-//    return NEXT_BOARDS[board]!!
-    return next
+
+    return next.toList()
 }
 //
 //fun computeNextBoards(hash: Int) {
@@ -184,19 +181,6 @@ fun getNextBoards(board: Board): List<Int> {
 //}
 
 
-fun Int.getBoard(): List<Int> {
-    val board = this.toString().padStart(BOARD_SIZE, '0')
-    return List(BOARD_SIZE) {
-        board[it].digitToInt()
-    }
-}
-
-fun List<Int>.hash(): Int {
-    var hash = 0
-    this.forEach { hash = 10 * hash + it }
-    return hash
-}
-
 typealias Board = Int
 
 fun Board.add(i : Int, value: Int): Board{
@@ -207,9 +191,16 @@ fun Board.get (i:Int): Board {
     return (this shr i*3) and 7
 }
 
+fun Board.isFinal(): Boolean {
+    repeat(BOARD_SIZE){
+        if( this.get(it) == 0 ) return false
+    }
+    return true
+}
+
 fun Board.toHash() : Int {
     var hash = 0
-    repeat(9){ hash = 10 * hash + this.get(it) }
+    repeat(BOARD_SIZE){ hash = 10 * hash + this.get(it) }
     return hash
 }
 
