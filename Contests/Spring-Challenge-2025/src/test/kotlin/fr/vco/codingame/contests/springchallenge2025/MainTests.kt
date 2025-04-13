@@ -42,35 +42,10 @@ class MainTests {
 
         val times = List(10) {
             measureTimeMillis {
-                assertEquals(expected, resolve(initialBoard, depth))
+                assertEquals(expected, resolve(initialBoard, depth+1))
             }
         }
         println("Resolved test \t$testCase in \t${times.mean()}ms. \tMax: ${times.max()}ms, \tMin: ${times.min()}ms")
-
-        val times2 = List(10) {
-            measureTimeMillis {
-                assertEquals(expected, resolveNonRecursive(initialBoard, depth))
-            }
-        }
-
-        println("Resolved test \t$testCase in \t${times2.mean()}ms. \tMax: ${times2.max()}ms, \tMin: ${times2.min()}ms")
-
-    }
-
-
-    @Test
-    fun stuff() {
-
-
-        BOARD_MASKS.forEach{
-            println(it.toString(2))
-        }
-
-//
-//        println(666666667.toString(2).padStart(32, '0'))
-//        println(MODULO_30)
-//        println(MODULO_30.toString(2).padStart(32, '0'))
-//        println((MODULO_30 - 1).toString(2).padStart(32, '0'))
     }
 
 
@@ -88,21 +63,27 @@ class MainTests {
             listOf(6, 4, 8),
             listOf(5, 7)
         )
+
+        val combinations = neighbours.map{it.combinations(2)}
         println("arrayOf(")
-        neighbours.map {
-            println("${it.combinations(2)},")
+        combinations.forEach {
+            println(
+                "${it.joinToString(",", "arrayOf(", ")") { "intArrayOf(${it.joinToString(",")})" }},"
+            )
         }
         println(")")
-
     }
 }
 
 fun List<Long>.mean() = this.sum() / this.size
 
-fun List<Int>.combinations(minSize: Int): String {
+fun List<Int>.combinations(minSize: Int): List<List<Int>> {
     return (0..2.0.pow(size).roundToInt()).map {
         val combination = it.toString(2).padStart(size, '0')
         this.filterIndexed { i, _ -> combination[i] == '1' }
     }.filter { it.size >= minSize }
-        .joinToString(",", "arrayOf(", ")") { "intArrayOf(${it.joinToString(",")})" }
 }
+
+
+
+
