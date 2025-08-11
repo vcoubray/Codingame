@@ -1,4 +1,5 @@
 import kotlin.math.abs
+import kotlin.math.min
 
 fun readInt() = readln().toInt()
 fun readInts() = readln().split(" ").map { it.toInt() }
@@ -11,12 +12,17 @@ data class Position(val x: Int, val y: Int) {
     fun distanceManhattan(p: Position) = abs(x - p.x) + abs(y - p.y)
 }
 
+const val EMPTY = 0
+const val SMALL_COVER = 1
+const val GREAT_COVER = 2
+
+
+const val THROW_BOMB_RANGE = 4
+
 class Board(val width: Int, val height: Int) {
 
     companion object {
-        const val EMPTY = 0
-        const val SMALL_COVER = 1
-        const val GREAT_COVER = 2
+
 
         val MANHATTAN_DIRECTIONS = listOf(
             Position(0, 1),
@@ -53,6 +59,7 @@ class Board(val width: Int, val height: Int) {
         }
         neighbours = computeNeighbours(MANHATTAN_DIRECTIONS)
         splashRange = computeNeighbours(SPLASH_DIRECTIONS)
+        computeCover()
     }
 
     private fun computeNeighbours(directions: List<Position>): List<List<Int>> {
@@ -105,16 +112,27 @@ class Board(val width: Int, val height: Int) {
         return emptyList()
     }
 
-    fun getDamages(shooter: Agent, target: Agent): Int {
-        val distance = distances [shooter.tileId][target.tileId]
+    fun getDamages(shooter: Agent, shooterPos : Int, target: Agent, targetPos: Int): Int {
+        val distance = distances [shooterPos][targetPos]
         val rawDamage = when {
             distance <= shooter.optimalRange -> shooter.soakingPower
             distance <= shooter.optimalRange * 2 -> shooter.soakingPower / 2
             else -> 0
         }
 
-        return rawDamage * damageReductions[target.tileId][shooter.tileId] / 100
+        val damageFactor = damageReductions[shooterPos][targetPos] - if (target.cooldown != 0) 25 else 0
+
+        return rawDamage * damageFactor / 100
     }
+
+    fun getBestBomb( throwerPos: Int, targetAgents : List<Agent>) : Int?{
+        return grid.indices.filter { distances[throwerPos][it] <= THROW_BOMB_RANGE }
+            .map { it to targetAgents.count{target-> target.tileId in splashRange[it]}}
+            .maxByOrNull{(_, targetCounts) -> targetCounts}
+            ?.takeIf{(_, targetCounts) -> targetCounts > 0}
+            ?.first
+    }
+
 
 
     fun idToPos(id: Int) = Position(id % width, id / width)
@@ -182,21 +200,40 @@ fun main() {
             Agent(agents[id]!!, board.posToId(x, y), cooldown, splashBombs, wetness)
         }
         val myAgentCount = readInt()
-        val (myAgents, oppAgents) = livingAgents.filter { it.wetness < 100 }.partition { it.player == me }
+        val (myAgents, oppAgents) = livingAgents.partition { it.player == me }
 
         agents.forEach(System.err::println)
         myAgents.forEach(System.err::println)
 
+
+        val agentMoves = myAgents.associate{ agent -> agent.id to agent.tileId }.toMutableMap()
+        myAgents.forEach { agent ->
+            val targets = board.grid.indices.filter{ board.grid[it] == EMPTY && oppAgents.any{opp -> board.distances[it][opp.tileId] <= agent.optimalRange}}
+                .sortedBy{board.distances[agent.tileId][it] }
+
+            System.err.println("${agent.id} -> $${board.idToPos(targets.first())}")
+            if(targets.first() != agent.tileId) {
+                val target = board.neighbours[agent.tileId]
+                    .filter{board.grid[it] == EMPTY}
+                    .minBy{board.distances[it][targets.first()]}
+                agentMoves[agent.id] = target
+            }
+        }
+
+
         myAgents.forEach { agent ->
             val actions = mutableListOf<String>()
 
-            val dest = oppAgents.minBy{board.distances[it.tileId][agent.tileId]}
-            if(board.distances[dest.tileId][agent.tileId] > 1) {
-                actions.add(moveAction(board.idToPos(dest.tileId)))
-            }
+            val dest = agentMoves[agent.id]!!
+            actions.add(moveAction(board.idToPos(dest)))
 
-            if(agent.cooldown==0) {
-                val target = oppAgents.maxBy { board.getDamages(agent, it) }
+
+            val bestBombTarget = board.getBestBomb(dest, oppAgents)
+            if (agent.splashBombs > 0 && bestBombTarget != null){
+                actions.add(throwAction(board.idToPos(bestBombTarget)))
+            }
+            else if(agent.cooldown==0) {
+                val target = oppAgents.maxBy { board.getDamages(agent, agent.tileId, it, it.tileId) }
                 if (agent.isAtRange(target.tileId, board)) {
                     actions.add(shootAction(target))
                 }
@@ -206,6 +243,9 @@ fun main() {
 
             println("${agent.id};${actions.joinToString(";")}")
         }
+
+
+
     }
 
 }
@@ -215,5 +255,5 @@ fun main() {
 fun moveAction(x: Int, y: Int) = "MOVE $x $y"
 fun moveAction(pos: Position) = "MOVE ${pos.x} ${pos.y}"
 fun shootAction(target: Agent) = "SHOOT ${target.id}"
-fun throwAction(x: Int, y: Int) = "THROW $x $y"
+fun throwAction(pos: Position) = "THROW ${pos.x} ${pos.y}"
 fun hunkerDownAction() = "HUNKER_DOWN"
