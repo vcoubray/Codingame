@@ -67,7 +67,7 @@ val NEIGHBOURS_COMBINATIONS = arrayOf(
     arrayOf(intArrayOf(5, 7)),
 )
 
-fun computeNextBoards(state: StakeState) {
+fun computeNextBoards(state: StackState) {
     var nextId = 0
     for (i in 0 until BOARD_SIZE) {
         if (state.board and (7 shl i * 3) == 0) {

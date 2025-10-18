@@ -10,7 +10,7 @@ fun main() {
     println(resolve(grid.toBoard(), depth+1))
 }
 
-class StakeState(
+class StackState(
     var board: Int = 0,
     var key: Long = 0,
     var sum: Int = 0,
@@ -20,7 +20,7 @@ class StakeState(
 
 fun resolve(initialBoard: Int, depth: Int): Int {
     val cachedSums: HashMap<Long, Int>  = HashMap(CACHE_CAPACITY, 1f)
-    val stack = List(depth + 1) { StakeState() }
+    val stack = List(depth + 1) { StackState() }
     var turn = 1
     stack[1].board = initialBoard
 
