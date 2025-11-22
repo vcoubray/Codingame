@@ -8,6 +8,14 @@ const val BOMB_RANGE = 3
 const val NODE = '@'
 const val WALL = '#'
 
+data class Position(val x: Int, val y: Int) {
+    operator fun plus(other: Position) = Position(x + other.x, y + other.y)
+    operator fun minus(other: Position) = Position(x - other.x, y - other.y)
+    operator fun times(times: Int) = Position(x * times, y * times)
+    operator fun unaryMinus() = Position(-x, -y)
+    override fun toString() = "$x $y"
+}
+
 val DIRECTIONS = listOf(
     Position(0, 0),
     Position(0, 1),
@@ -23,20 +31,19 @@ data class Step(val pos: Position, val direction: Position = Position(0, 0)) {
     fun next() = Step(pos + direction, direction)
 }
 
-class Node(start: Position, turns: Int, grid: List<String> ) {
+class Node(start: Position, val turns: Int, grid: List<String>) {
 
     var trajectories = mutableListOf<List<Step>>()
 
     init {
         for (trajectory in DIRECTIONS.map { computeTrajectory(Step(start, it), turns, grid) }) {
-            if (trajectory.first() !in trajectories.map { it.first() }) {
+            if (trajectory.last() !in trajectories.map { it.last() }) {
                 trajectories.add(trajectory)
             }
         }
     }
 
     fun isReady() = trajectories.size == 1
-    fun isMoving() = trajectories.first().first().direction != DIRECTIONS[0]
     fun getPositionAt(turn: Int) = trajectories.first()[turn].pos
 
     fun updateTrajectories(grid: List<String>, turn: Int) {
@@ -49,7 +56,7 @@ class Node(start: Position, turns: Int, grid: List<String> ) {
             val last = trajectory[turn - 1]
             trajectory.add(nextStep(last, grid))
         }
-        return trajectory.reversed()
+        return trajectory
     }
 
     private fun nextStep(step: Step, grid: List<String>): Step {
@@ -68,21 +75,23 @@ class Node(start: Position, turns: Int, grid: List<String> ) {
 
 }
 
-class SimulatorBuilder(val width: Int, val height: Int) {
+class SimulatorBuilder(val width: Int, val height: Int, val readln: () -> String = ::readln) {
 
-    val grid = MutableList(height) { "" }
-    lateinit var ranges: List<List<Int>>
-    lateinit var nodes: List<Node>
+    private val grid = MutableList(height) { "" }
+    private lateinit var ranges: List<List<Int>>
+    private lateinit var nodes: List<Node>
+    private var totalTurns: Int = 0
 
     private fun init() {
         val (turns, _) = readln().split(" ").map { it.toInt() }
+        totalTurns = turns
         repeat(height) {
             grid[it] = readln()
         }
         measureTimeMillis {
             ranges = initRange(grid)
-            nodes = initNodes(grid, turns)
-        }.let { System.err.println("Init Simulator Builder in ${it}ms") }
+            nodes = initNodes(grid, totalTurns)
+        }.let { System.err.println("simulator Builder initialed in ${it}ms") }
     }
 
     private fun initRange(grid: List<String>): List<List<Int>> {
@@ -120,7 +129,7 @@ class SimulatorBuilder(val width: Int, val height: Int) {
     private fun updatePossibleNodeDirections(grid: List<String>, turn: Int) {
         nodes.forEach { node ->
             if (!node.isReady()) {
-                 node.updateTrajectories(grid, turn)
+                node.updateTrajectories(grid, turn)
             }
         }
     }
@@ -134,17 +143,15 @@ class SimulatorBuilder(val width: Int, val height: Int) {
         println("WAIT")
 
         while (!isReady()) {
-            val (turns, bombs) = readln().split(" ").map { it.toInt() }
+            val (turnsLeft, bombs) = readln().split(" ").map { it.toInt() }
             measureTimeMillis {
                 val grid = List(height) { readln() }
-                updatePossibleNodeDirections(grid, turns)
-            }.let { System.err.println("updateGrid in ${it}ms") }
+                updatePossibleNodeDirections(grid, totalTurns - turnsLeft)
+            }.let { System.err.println("grid updated in ${it}ms") }
 
             if (isReady()) {
-                System.err.println("simulator ready")
                 val start = System.currentTimeMillis()
-
-                val rounds = List(turns + 1) { turn ->
+                val rounds = List(totalTurns) { turn ->
                     val roundGrid = MutableList(height * width) { -1 }
                     val nodesInRange = List(ranges.size) { mutableListOf<Int>() }
 
@@ -152,21 +159,25 @@ class SimulatorBuilder(val width: Int, val height: Int) {
                         .forEachIndexed { nodeId, nodePos ->
                             roundGrid[nodePos] = nodeId
                             ranges[nodePos].forEach { pos -> nodesInRange[pos].add(nodeId) }
-                    }
+                        }
 
                     val actions = nodesInRange.mapIndexed { nodeId, nodesInRange -> nodeId to nodesInRange }
                         .filter { (_, range) -> range.isNotEmpty() }
-//                        .sortedWith(
-//                            compareByDescending<Pair<Int, List<Int>>> { (_, range) -> range.count { nodes[it].isMoving() } }
-//                                .thenByDescending { (_, range) -> range.size })
-                        .sortedByDescending { (_, range) -> range.size }
-                        .map{(i, range)-> i to range.toNodeMask()}
+                        .map { (i, range) -> i to range.toNodeMask() }
 
                     Round(actions, roundGrid)
                 }
                 System.err.println("Simulator initied in ${System.currentTimeMillis() - start}ms")
 
-                return GameSimulator(width, height, bombs, turns, nodes.size, ranges, rounds)
+                return GameSimulator(
+                    width,
+                    height,
+                    bombs,
+                    turnsLeft,
+                    nodes.size,
+                    ranges,
+                    rounds.takeLast(turnsLeft - 1)
+                )
             }
             println("WAIT")
         }
