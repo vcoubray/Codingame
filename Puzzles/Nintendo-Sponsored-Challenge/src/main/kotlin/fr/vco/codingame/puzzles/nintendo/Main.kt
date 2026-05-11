@@ -59,16 +59,9 @@ class Polynomial(rawTerms: UIntArray) {
             val terms = UIntArray(termSize) {
                 Random.nextUInt()
             }
-            println(terms.map{it.toString(2)})
             terms[termSize - 1] = terms[termSize - 1] and ((1u shl deg%32) - 1u)
             return Polynomial(terms.trim())
         }
-
-        var counter = 0
-    }
-
-    init {
-        counter++
     }
 
     fun evalAt0() = if (this.isZero()) 0u else terms[0] and 1u
@@ -218,9 +211,7 @@ class Polynomial(rawTerms: UIntArray) {
         if(this.deg() < degre || this == ONE) return emptyList()
         if (this.deg() == degre) return listOf(this)
         var gcd: Polynomial
-        var i = 0
         do {
-            i++
             val r = random(deg())
             var t = r
             var s = r
@@ -229,7 +220,6 @@ class Polynomial(rawTerms: UIntArray) {
                 t = (t + s) % this
             }
             gcd = t.gcd(this)
-            if (i %100 == 0) println(i)
         } while (gcd.deg() == 0 || gcd.deg() == this.deg())
         return gcd.edf(degre) + (this / gcd).edf(degre)
     }
