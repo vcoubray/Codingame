@@ -53,10 +53,12 @@ class Test : FunSpec({
         )
     )
 
-    tests.forEachIndexed{i,(size, input, expected) ->
 
-        test("Game ${i+1}") {
-            decode(size, input) shouldBe expected
+    context("Execute all Tests") {
+        tests.forEachIndexed { i, (size, input, expected) ->
+            test("Game ${i + 1}") {
+                decode(input, size) shouldBe expected
+            }
         }
 
     }
