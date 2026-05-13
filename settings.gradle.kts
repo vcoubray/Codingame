@@ -23,6 +23,7 @@ include(
     "Puzzles:Winamax",
     "Golf:Thor",
     "Contests:Code4Life",
+    "Contests:Snake-Byte",
     "Contests:Spring-Challenge-2021",
     "Contests:Spring-Challenge-2022",
     "Contests:Spring-Challenge-2023",
