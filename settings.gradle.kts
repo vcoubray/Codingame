@@ -8,6 +8,7 @@ include(
     "Puzzles:Genome-Sequencing",
     "Puzzles:Mars-Lander",
     "Puzzles:Music-scores",
+    "Puzzles:Nintendo-Sponsored-Challenge",
     "Puzzles:Roller-Coaster",
     "Puzzles:Shadow-Of-The-Knight",
     "Puzzles:Super-Calculateur",
